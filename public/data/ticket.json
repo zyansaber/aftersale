@@ -1,0 +1,64 @@
+{
+  "c4cTickets_test": {
+    "tickets": {
+      "41": {
+        "updatedAt": 1767326776264,
+        "ticket": {
+          "AmountIncludingTax": "546.900000",
+          "ApprovalNumber": "",
+          "ChassisNumber": "",
+          "CreatedOn": "27/11/2024",
+          "ERPFreeOrder": "10034391",
+          "ERPInvoiceNumber": "",
+          "ERPPurchaseOrder": "7000008991",
+          "HubSpotID": "",
+          "Responded": true,
+          "ServiceRequesterEmail": "someone@example.com",
+          "TicketID": "41",
+          "TicketName": "Example Name",
+          "TicketSeverity": "",
+          "TicketStatus": "Z9",
+          "TicketStatusText": "Sales Order Approved",
+          "TicketType": "Z006",
+          "TicketTypeText": "In Field Warranty Claims",
+          "Z1Z8TimeConsumed": "131 D 17 H 32 M"
+        },
+        "roles": {
+          "1001": {
+            "InvolvedPartyBusinessPartnerID": "1015210",
+            "InvolvedPartyID": "1015210",
+            "InvolvedPartyName": "Gay Quill",
+            "InvolvedPartyRoleID": "1001",
+            "RepairerBusinessNameID": "Caravan Repairs and Service",
+            "RepairerEmail": "kylie@caravanrepairsandservice.com.au",
+            "RepairerPhoneNumber": "07 3841 7383",
+            "RepairerNamePointOfContact": "Kylie",
+            "requested_skip": 4800
+          },
+          "40": {
+            "InvolvedPartyBusinessPartnerID": null,
+            "InvolvedPartyID": null,
+            "InvolvedPartyName": null,
+            "InvolvedPartyRoleID": null,
+            "RepairerBusinessNameID": null,
+            "RepairerEmail": null,
+            "RepairerPhoneNumber": null,
+            "RepairerNamePointOfContact": null,
+            "requested_skip": null
+          },
+          "43": {
+            "InvolvedPartyBusinessPartnerID": null,
+            "InvolvedPartyID": null,
+            "InvolvedPartyName": null,
+            "InvolvedPartyRoleID": null,
+            "RepairerBusinessNameID": null,
+            "RepairerEmail": null,
+            "RepairerPhoneNumber": null,
+            "RepairerNamePointOfContact": null,
+            "requested_skip": null
+          }
+        }
+      }
+    }
+  }
+}
