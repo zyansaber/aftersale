@@ -1,18 +1,28 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onValue } from "firebase/database";
+import { getDatabase, ref, get } from "firebase/database";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBVqlE55a2CUDmy_0NRWyL-eHE-ptz3Jo0",
-  authDomain: "snowy-hr-report.firebaseapp.com",
-  databaseURL: "https://snowy-hr-report-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "snowy-hr-report",
-  storageBucket: "snowy-hr-report.firebasestorage.app",
-  messagingSenderId: "827350144699",
-  appId: "1:827350144699:web:c26b2e18bf3765cb877b9e",
-  measurementId: "G-JG5WXG2JWS"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
+
+const missingEnvVars = Object.entries(firebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
+
+if (missingEnvVars.length > 0) {
+  throw new Error(
+    `Missing Firebase environment variables: ${missingEnvVars.join(", ")}. Check your .env configuration.`
+  );
+}
 
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-export { database, ref, onValue };
+export { database, ref, get };
