@@ -6,11 +6,13 @@ import Sidebar from "@/components/Sidebar";
 import DealershipsPage from "@/pages/DealershipsPage";
 import EmployeesPage from "@/pages/EmployeesPage";
 import RepairsPage from "@/pages/RepairsPage";
+import AdminPage from "@/pages/AdminPage";
+import TicketsPage from "@/pages/TicketsPage";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState("dealerships");
+  const [activeTab, setActiveTab] = useState("admin");
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -19,6 +21,8 @@ const App = () => {
         <div className="flex min-h-screen bg-slate-50">
           <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
           <main className="flex-1 ml-72 p-8 transition-all duration-300">
+            {activeTab === "admin" && <AdminPage />}
+            {activeTab === "tickets" && <TicketsPage />}
             {activeTab === "dealerships" && <DealershipsPage />}
             {activeTab === "employees" && <EmployeesPage />}
             {activeTab === "repairs" && <RepairsPage />}
