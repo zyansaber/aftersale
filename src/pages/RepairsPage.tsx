@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RepairStats } from "@/types/ticket";
-import { analyzeRepairs, loadTicketData } from "@/utils/dataParser";
+import { analyzeRepairs } from "@/utils/dataParser";
 import StatCard from "@/components/StatCard";
 import { Wrench, DollarSign, TrendingUp, PieChart as PieChartIcon } from "lucide-react";
 import {
@@ -13,52 +13,71 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useTicketData } from "@/hooks/useTicketData";
+import { PaginationControls } from "@/components/PaginationControls";
 
 const COLORS = ["#10B981", "#F59E0B", "#EF4444", "#3B82F6", "#8B5CF6", "#EC4899"];
+const PAGE_SIZE = 50;
 
 export default function RepairsPage() {
-  const [repairs, setRepairs] = useState<RepairStats[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, error } = useTicketData();
+  const [page, setPage] = useState(1);
+
+  const repairs = useMemo<RepairStats[]>(() => {
+    if (!data) return [];
+    return analyzeRepairs(data);
+  }, [data]);
 
   useEffect(() => {
-    loadTicketData().then((data) => {
-      const repairStats = analyzeRepairs(data);
-      setRepairs(repairStats);
-      setLoading(false);
-    });
-  }, []);
+    setPage(1);
+  }, [repairs.length]);
 
-  if (loading) {
+  const costRangeData = useMemo(
+    () => [
+      {
+        name: "Low (<$500)",
+        value: repairs.reduce((sum, r) => sum + r.costRanges.low, 0),
+      },
+      {
+        name: "Medium ($500-$2000)",
+        value: repairs.reduce((sum, r) => sum + r.costRanges.medium, 0),
+      },
+      {
+        name: "High (>$2000)",
+        value: repairs.reduce((sum, r) => sum + r.costRanges.high, 0),
+      },
+    ],
+    [repairs]
+  );
+
+  const topShopsData = useMemo(
+    () =>
+      repairs.slice(0, 5).map((r) => ({
+        name: r.repairName,
+        totalCost: r.totalCost,
+        avgCost: r.avgCost,
+      })),
+    [repairs]
+  );
+
+  const paginatedRepairs = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return repairs.slice(start, start + PAGE_SIZE);
+  }, [page, repairs]);
+
+  if (isLoading) {
     return <div className="p-8">Loading repair data...</div>;
+  }
+
+  if (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return <div className="p-8 text-destructive">Failed to load repair data: {message}</div>;
   }
 
   const totalRepairShops = repairs.length;
   const totalCost = repairs.reduce((sum, r) => sum + r.totalCost, 0);
   const totalTickets = repairs.reduce((sum, r) => sum + r.ticketCount, 0);
   const avgCostPerTicket = totalTickets > 0 ? (totalCost / totalTickets).toFixed(2) : 0;
-
-  // Cost range distribution
-  const costRangeData = [
-    {
-      name: "Low (<$500)",
-      value: repairs.reduce((sum, r) => sum + r.costRanges.low, 0),
-    },
-    {
-      name: "Medium ($500-$2000)",
-      value: repairs.reduce((sum, r) => sum + r.costRanges.medium, 0),
-    },
-    {
-      name: "High (>$2000)",
-      value: repairs.reduce((sum, r) => sum + r.costRanges.high, 0),
-    },
-  ];
-
-  // Top repair shops by cost
-  const topShopsData = repairs.slice(0, 5).map((r) => ({
-    name: r.repairName,
-    totalCost: r.totalCost,
-    avgCost: r.avgCost,
-  }));
 
   return (
     <div className="space-y-6">
@@ -162,7 +181,7 @@ export default function RepairsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {repairs.map((repair) => (
+              {paginatedRepairs.map((repair) => (
                 <TableRow key={repair.repairId}>
                   <TableCell className="font-medium">{repair.repairName}</TableCell>
                   <TableCell className="text-muted-foreground">{repair.repairId}</TableCell>
@@ -178,6 +197,13 @@ export default function RepairsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <PaginationControls
+        totalItems={repairs.length}
+        pageSize={PAGE_SIZE}
+        page={page}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
