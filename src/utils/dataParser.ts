@@ -5,6 +5,8 @@ import {
   RepairStats,
   DisplaySettings,
   EntityVisibilityCategory,
+  TicketStatusMapping,
+  TicketStatusMappingEntry,
 } from "@/types/ticket";
 import { parseTimeConsumed, averageTimeBreakdown } from "./timeParser";
 import { database, ref, get, set } from "@/lib/firebase";
@@ -16,6 +18,8 @@ const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   employees: {},
   repairs: {},
 };
+
+const DEFAULT_TICKET_STATUS_MAPPING: TicketStatusMapping = {};
 
 export async function loadDisplaySettings(): Promise<DisplaySettings> {
   const settingsRef = ref(database, "displaySettings");
@@ -82,6 +86,25 @@ export async function loadTicketData(): Promise<TicketData> {
       tickets: data,
     },
   };
+}
+
+export async function loadTicketStatusMapping(): Promise<TicketStatusMapping> {
+  const mappingRef = ref(database, "ticketStatusMapping");
+  const snapshot = await get(mappingRef);
+
+  if (!snapshot.exists()) {
+    return DEFAULT_TICKET_STATUS_MAPPING;
+  }
+
+  return snapshot.val();
+}
+
+export async function updateTicketStatusMappingEntry(
+  ticketStatus: string,
+  entry: TicketStatusMappingEntry
+): Promise<void> {
+  const targetRef = ref(database, `ticketStatusMapping/${ticketStatus}`);
+  await set(targetRef, entry);
 }
 
 export function filterTicketsByDisplaySettings(
