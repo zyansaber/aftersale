@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DealerStats } from "@/types/ticket";
-import { analyzeDealers, loadTicketData } from "@/utils/dataParser";
+import { analyzeDealers } from "@/utils/dataParser";
 import StatCard from "@/components/StatCard";
 import { Building2, FileText, Clock, TrendingUp } from "lucide-react";
 import {
@@ -14,41 +14,56 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatTimeBreakdown } from "@/utils/timeParser";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useTicketData } from "@/hooks/useTicketData";
+import { PaginationControls } from "@/components/PaginationControls";
 
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
+const PAGE_SIZE = 50;
 
 export default function DealershipsPage() {
-  const [dealers, setDealers] = useState<DealerStats[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, error } = useTicketData();
+  const [page, setPage] = useState(1);
+
+  const dealers = useMemo<DealerStats[]>(() => {
+    if (!data) return [];
+    return analyzeDealers(data);
+  }, [data]);
 
   useEffect(() => {
-    loadTicketData().then((data) => {
-      const dealerStats = analyzeDealers(data);
-      setDealers(dealerStats);
-      setLoading(false);
-    });
-  }, []);
+    setPage(1);
+  }, [dealers.length]);
 
-  if (loading) {
+  const chartData = useMemo(() => {
+    const ticketTypeData: Record<string, number> = {};
+    dealers.forEach((dealer) => {
+      Object.entries(dealer.ticketsByType).forEach(([type, count]) => {
+        ticketTypeData[type] = (ticketTypeData[type] || 0) + count;
+      });
+    });
+
+    return Object.entries(ticketTypeData).map(([name, value]) => ({
+      name,
+      value,
+    }));
+  }, [dealers]);
+
+  const paginatedDealers = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return dealers.slice(start, start + PAGE_SIZE);
+  }, [dealers, page]);
+
+  if (isLoading) {
     return <div className="p-8">Loading dealership data...</div>;
+  }
+
+  if (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return <div className="p-8 text-destructive">Failed to load dealership data: {message}</div>;
   }
 
   const totalTickets = dealers.reduce((sum, d) => sum + d.totalTickets, 0);
   const totalDealers = dealers.length;
   const avgTicketsPerDealer = totalDealers > 0 ? (totalTickets / totalDealers).toFixed(1) : 0;
-
-  // Prepare chart data for ticket types
-  const ticketTypeData: Record<string, number> = {};
-  dealers.forEach((dealer) => {
-    Object.entries(dealer.ticketsByType).forEach(([type, count]) => {
-      ticketTypeData[type] = (ticketTypeData[type] || 0) + count;
-    });
-  });
-
-  const chartData = Object.entries(ticketTypeData).map(([name, value]) => ({
-    name,
-    value,
-  }));
 
   return (
     <div className="space-y-6">
@@ -165,7 +180,7 @@ export default function DealershipsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {dealers.map((dealer) => {
+              {paginatedDealers.map((dealer) => {
                 const topStatus = Object.entries(dealer.ticketsByStatus).sort(
                   ([, a], [, b]) => b - a
                 )[0];
@@ -193,6 +208,13 @@ export default function DealershipsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <PaginationControls
+        totalItems={dealers.length}
+        pageSize={PAGE_SIZE}
+        page={page}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
