@@ -86,8 +86,19 @@ export async function loadTicketData(): Promise<TicketData> {
 
 export function filterTicketsByDisplaySettings(
   data: TicketData,
-  settings?: DisplaySettings
+  settings?: DisplaySettings,
+  options?: {
+    applyDealershipVisibility?: boolean;
+    applyEmployeeVisibility?: boolean;
+    applyRepairVisibility?: boolean;
+  }
 ): TicketData {
+  const {
+    applyDealershipVisibility = true,
+    applyEmployeeVisibility = true,
+    applyRepairVisibility = true,
+  } = options ?? {};
+
   if (!settings) {
     return data;
   }
@@ -98,9 +109,11 @@ export function filterTicketsByDisplaySettings(
       const { employeeId } = getEmployeeInfo(ticketEntry);
       const { repairId } = getRepairInfo(ticketEntry);
 
-      const isDealerVisible = settings.dealerships[dealerId] ?? true;
-      const isEmployeeVisible = settings.employees[employeeId] ?? true;
-      const isRepairVisible = settings.repairs[repairId] ?? true;
+      const isDealerVisible =
+        !applyDealershipVisibility || (settings.dealerships[dealerId] ?? true);
+      const isEmployeeVisible =
+        !applyEmployeeVisibility || (settings.employees[employeeId] ?? true);
+      const isRepairVisible = !applyRepairVisibility || (settings.repairs[repairId] ?? true);
 
       if (isDealerVisible && isEmployeeVisible && isRepairVisible) {
         acc[ticketId] = ticketEntry;
