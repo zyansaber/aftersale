@@ -1,29 +1,66 @@
-import { useMemo } from "react";
-import { useTicketData } from "./useTicketData";
-import { useDisplaySettings } from "./useDisplaySettings";
-import { filterTicketsByDisplaySettings } from "@/utils/dataParser";
-import { TicketData } from "@/types/ticket";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  DisplaySettings,
+  EntityVisibilityCategory,
+  UpdateDisplaySettingPayload,
+} from "@/types/ticket";
+import { loadDisplaySettings, updateDisplaySetting } from "@/utils/dataParser";
 
-export function useVisibleTickets() {
-  const ticketQuery = useTicketData();
-  const settingsQuery = useDisplaySettings();
+export const DISPLAY_SETTINGS_KEY = ["displaySettings"];
 
-  const filteredData: TicketData | undefined = useMemo(() => {
-    if (!ticketQuery.data) return undefined;
-    return filterTicketsByDisplaySettings(ticketQuery.data, settingsQuery.data);
-  }, [settingsQuery.data, ticketQuery.data]);
+export function useDisplaySettings() {
+  const queryClient = useQueryClient();
 
-  const isLoading = ticketQuery.isLoading || settingsQuery.isLoading;
-  const error = ticketQuery.error || settingsQuery.error;
+  const settingsQuery = useQuery<DisplaySettings>({
+    queryKey: DISPLAY_SETTINGS_KEY,
+    queryFn: loadDisplaySettings,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const mutation = useMutation({
+    mutationFn: (payload: UpdateDisplaySettingPayload) =>
+      updateDisplaySetting(payload.category, payload.entityId, payload.isVisible),
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: DISPLAY_SETTINGS_KEY });
+
+      const previousSettings = queryClient.getQueryData<DisplaySettings>(DISPLAY_SETTINGS_KEY);
+
+      queryClient.setQueryData<DisplaySettings | undefined>(DISPLAY_SETTINGS_KEY, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          [payload.category]: {
+            ...current[payload.category],
+            [payload.entityId]: payload.isVisible,
+          },
+        };
+      });
+
+      return { previousSettings };
+    },
+    onError: (_error, _payload, context) => {
+      if (context?.previousSettings) {
+        queryClient.setQueryData(DISPLAY_SETTINGS_KEY, context.previousSettings);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: DISPLAY_SETTINGS_KEY });
+    },
+  });
+
+  const toggleVisibility = (
+    category: EntityVisibilityCategory,
+    entityId: string,
+    isVisible: boolean
+  ) => {
+    mutation.mutate({ category, entityId, isVisible });
+  };
 
   return {
-    data: filteredData,
-    rawData: ticketQuery.data,
-    settings: settingsQuery.data,
-    isLoading,
-    error,
-    refetch: ticketQuery.refetch,
-    settingsLoading: settingsQuery.isLoading,
-    settingsError: settingsQuery.error,
+    ...settingsQuery,
+    toggleVisibility,
+    isUpdating: mutation.isPending,
   };
 }
