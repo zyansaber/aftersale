@@ -1,6 +1,71 @@
-import { TicketData, DealerStats, EmployeeStats, RepairStats } from "@/types/ticket";
+import {
+  TicketData,
+  DealerStats,
+  EmployeeStats,
+  RepairStats,
+  DisplaySettings,
+  EntityVisibilityCategory,
+} from "@/types/ticket";
 import { parseTimeConsumed, averageTimeBreakdown } from "./timeParser";
-import { database, ref, get } from "@/lib/firebase";
+import { database, ref, get, set } from "@/lib/firebase";
+
+type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
+
+const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+  dealerships: {},
+  employees: {},
+  repairs: {},
+};
+
+export async function loadDisplaySettings(): Promise<DisplaySettings> {
+  const settingsRef = ref(database, "displaySettings");
+  const snapshot = await get(settingsRef);
+
+  if (!snapshot.exists()) {
+    return DEFAULT_DISPLAY_SETTINGS;
+  }
+
+  const data = snapshot.val();
+
+  return {
+    dealerships: data.dealerships ?? {},
+    employees: data.employees ?? {},
+    repairs: data.repairs ?? {},
+  } satisfies DisplaySettings;
+}
+
+export async function updateDisplaySetting(
+  category: EntityVisibilityCategory,
+  entityId: string,
+  isVisible: boolean
+): Promise<void> {
+  const targetRef = ref(database, `displaySettings/${category}/${entityId}`);
+  await set(targetRef, isVisible);
+}
+
+function getDealerInfo(ticketEntry: TicketEntry) {
+  const dealer = ticketEntry.roles["1001"];
+  return {
+    dealerId: dealer?.InvolvedPartyBusinessPartnerID ?? "unknown",
+    dealerName: dealer?.RepairerBusinessNameID ?? "Unknown Dealer",
+  };
+}
+
+function getEmployeeInfo(ticketEntry: TicketEntry) {
+  const employee = ticketEntry.roles["40"];
+  return {
+    employeeId: employee?.InvolvedPartyBusinessPartnerID ?? "unassigned",
+    employeeName: employee?.InvolvedPartyName ?? "Unassigned",
+  };
+}
+
+function getRepairInfo(ticketEntry: TicketEntry) {
+  const repair = ticketEntry.roles["43"];
+  return {
+    repairId: repair?.InvolvedPartyBusinessPartnerID ?? "no-repair",
+    repairName: repair?.RepairerBusinessNameID ?? "No Repair Shop Assigned",
+  };
+}
 
 export async function loadTicketData(): Promise<TicketData> {
   const ticketsRef = ref(database, "c4cTickets_test/tickets");
@@ -19,46 +84,83 @@ export async function loadTicketData(): Promise<TicketData> {
   };
 }
 
+export function filterTicketsByDisplaySettings(
+  data: TicketData,
+  settings?: DisplaySettings
+): TicketData {
+  if (!settings) {
+    return data;
+  }
+
+  const filteredTickets = Object.entries(data.c4cTickets_test.tickets).reduce(
+    (acc, [ticketId, ticketEntry]) => {
+      const { dealerId } = getDealerInfo(ticketEntry);
+      const { employeeId } = getEmployeeInfo(ticketEntry);
+      const { repairId } = getRepairInfo(ticketEntry);
+
+      const isDealerVisible = settings.dealerships[dealerId] ?? true;
+      const isEmployeeVisible = settings.employees[employeeId] ?? true;
+      const isRepairVisible = settings.repairs[repairId] ?? true;
+
+      if (isDealerVisible && isEmployeeVisible && isRepairVisible) {
+        acc[ticketId] = ticketEntry;
+      }
+      return acc;
+    },
+    {} as TicketData["c4cTickets_test"]["tickets"]
+  );
+
+  return {
+    c4cTickets_test: {
+      tickets: filteredTickets,
+    },
+  };
+}
+
+export function summarizeDealerships(data: TicketData) {
+  const dealers = new Map<string, { dealerId: string; dealerName: string; count: number }>();
+
+  Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
+    const { dealerId, dealerName } = getDealerInfo(ticketEntry);
+    const existing = dealers.get(dealerId) ?? { dealerId, dealerName, count: 0 };
+    existing.count += 1;
+    dealers.set(dealerId, existing);
+  });
+
+  return Array.from(dealers.values()).sort((a, b) => b.count - a.count);
+}
+
+export function summarizeEmployees(data: TicketData) {
+  const employees = new Map<string, { employeeId: string; employeeName: string; count: number }>();
+
+  Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
+    const { employeeId, employeeName } = getEmployeeInfo(ticketEntry);
+    const existing = employees.get(employeeId) ?? { employeeId, employeeName, count: 0 };
+    existing.count += 1;
+    employees.set(employeeId, existing);
+  });
+
+  return Array.from(employees.values()).sort((a, b) => b.count - a.count);
+}
+
+export function summarizeRepairs(data: TicketData) {
+  const repairs = new Map<string, { repairId: string; repairName: string; count: number }>();
+
+  Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
+    const { repairId, repairName } = getRepairInfo(ticketEntry);
+    const existing = repairs.get(repairId) ?? { repairId, repairName, count: 0 };
+    existing.count += 1;
+    repairs.set(repairId, existing);
+  });
+
+  return Array.from(repairs.values()).sort((a, b) => b.count - a.count);
+}
+
 export function analyzeDealers(data: TicketData): DealerStats[] {
   const dealerMap = new Map<string, DealerStats>();
 
   Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
-    const dealer = ticketEntry.roles["1001"];
-    // Check if dealer exists and has valid data
-    if (!dealer || !dealer.InvolvedPartyBusinessPartnerID) {
-      // Create a default "Unknown Dealer" entry for tickets without dealer info
-      const dealerId = "unknown";
-      const dealerName = "Unknown Dealer";
-      
-      if (!dealerMap.has(dealerId)) {
-        dealerMap.set(dealerId, {
-          dealerId,
-          dealerName,
-          totalTickets: 0,
-          ticketsByStatus: {},
-          ticketsByType: {},
-          chassisNumbers: [],
-          avgTimeConsumed: { days: 0, hours: 0, minutes: 0, totalMinutes: 0 },
-        });
-      }
-
-      const stats = dealerMap.get(dealerId)!;
-      stats.totalTickets++;
-
-      const ticket = ticketEntry.ticket;
-      stats.ticketsByStatus[ticket.TicketStatusText] =
-        (stats.ticketsByStatus[ticket.TicketStatusText] || 0) + 1;
-      stats.ticketsByType[ticket.TicketTypeText] =
-        (stats.ticketsByType[ticket.TicketTypeText] || 0) + 1;
-
-      if (ticket.ChassisNumber && !stats.chassisNumbers.includes(ticket.ChassisNumber)) {
-        stats.chassisNumbers.push(ticket.ChassisNumber);
-      }
-      return;
-    }
-
-    const dealerId = dealer.InvolvedPartyBusinessPartnerID;
-    const dealerName = dealer.RepairerBusinessNameID || "Unknown Dealer";
+    const { dealerId, dealerName } = getDealerInfo(ticketEntry);
 
     if (!dealerMap.has(dealerId)) {
       dealerMap.set(dealerId, {
@@ -110,41 +212,7 @@ export function analyzeEmployees(data: TicketData): EmployeeStats[] {
   const employeeMap = new Map<string, EmployeeStats>();
 
   Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
-    const employee = ticketEntry.roles["40"];
-    // Check if employee exists and has valid data
-    if (!employee || !employee.InvolvedPartyBusinessPartnerID) {
-      // Create a default "Unassigned" entry for tickets without employee info
-      const employeeId = "unassigned";
-      const employeeName = "Unassigned";
-      
-      if (!employeeMap.has(employeeId)) {
-        employeeMap.set(employeeId, {
-          employeeId,
-          employeeName,
-          activeTickets: 0,
-          completedTickets: 0,
-          ticketsByStatus: {},
-          totalTimeConsumed: { days: 0, hours: 0, minutes: 0, totalMinutes: 0 },
-          avgTimePerTicket: { days: 0, hours: 0, minutes: 0, totalMinutes: 0 },
-        });
-      }
-
-      const stats = employeeMap.get(employeeId)!;
-      const ticket = ticketEntry.ticket;
-
-      if (ticket.TicketStatus === "Z9" || ticket.TicketStatusText.includes("Approved")) {
-        stats.completedTickets++;
-      } else {
-        stats.activeTickets++;
-      }
-
-      stats.ticketsByStatus[ticket.TicketStatusText] =
-        (stats.ticketsByStatus[ticket.TicketStatusText] || 0) + 1;
-      return;
-    }
-
-    const employeeId = employee.InvolvedPartyBusinessPartnerID;
-    const employeeName = employee.InvolvedPartyName || "Unknown Employee";
+    const { employeeId, employeeName } = getEmployeeInfo(ticketEntry);
 
     if (!employeeMap.has(employeeId)) {
       employeeMap.set(employeeId, {
@@ -203,37 +271,32 @@ export function analyzeRepairs(data: TicketData): RepairStats[] {
   const repairMap = new Map<string, RepairStats>();
 
   Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
-    const repair = ticketEntry.roles["43"];
-    // Check if repair exists and has valid data
-    if (!repair || !repair.InvolvedPartyBusinessPartnerID) {
-      // Create a default "No Repair Shop" entry for tickets without repair info
-      const repairId = "no-repair";
-      const repairName = "No Repair Shop Assigned";
-      
-      if (!repairMap.has(repairId)) {
-        repairMap.set(repairId, {
-          repairId,
-          repairName,
-          totalCost: 0,
-          avgCost: 0,
-          ticketCount: 0,
-          costByType: {},
-          costRanges: { low: 0, medium: 0, high: 0 },
-        });
-      }
+    const { repairId, repairName } = getRepairInfo(ticketEntry);
 
-      const stats = repairMap.get(repairId)!;
-      const ticket = ticketEntry.ticket;
-      const cost = parseFloat(ticket.AmountIncludingTax) || 0;
+    if (!repairMap.has(repairId)) {
+      repairMap.set(repairId, {
+        repairId,
+        repairName,
+        totalCost: 0,
+        avgCost: 0,
+        ticketCount: 0,
+        costByType: {},
+        costRanges: { low: 0, medium: 0, high: 0 },
+      });
+    }
 
-      stats.totalCost += cost;
-      stats.ticketCount++;
-      stats.costByType[ticket.TicketTypeText] =
-        (stats.costByType[ticket.TicketTypeText] || 0) + cost;
+    const stats = repairMap.get(repairId)!;
+    const ticket = ticketEntry.ticket;
+    const cost = parseFloat(ticket.AmountIncludingTax) || 0;
 
-      // Categorize cost ranges
-      if (cost < 500) {
-        stats.costRanges.low++;
+    stats.totalCost += cost;
+    stats.ticketCount++;
+    stats.costByType[ticket.TicketTypeText] =
+      (stats.costByType[ticket.TicketTypeText] || 0) + cost;
+
+    // Categorize cost ranges
+    if (cost < 500) {
+      stats.costRanges.low++;
       } else if (cost < 2000) {
         stats.costRanges.medium++;
       } else {
