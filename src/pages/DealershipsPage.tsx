@@ -14,14 +14,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatTimeBreakdown } from "@/utils/timeParser";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { useTicketData } from "@/hooks/useTicketData";
+import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import { PaginationControls } from "@/components/PaginationControls";
 
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
 const PAGE_SIZE = 50;
 
 export default function DealershipsPage() {
-  const { data, isLoading, error } = useTicketData();
+  const { data, isLoading, error } = useVisibleTickets();
   const [page, setPage] = useState(1);
 
   const dealers = useMemo<DealerStats[]>(() => {
