@@ -125,3 +125,11 @@ export interface UpdateDisplaySettingPayload {
   entityId: string;
   isVisible: boolean;
 }
+
+
+export interface TicketStatusMappingEntry {
+  ticketStatusText: string;
+  firstLevelStatus: string;
+}
+
+export type TicketStatusMapping = Record<string, TicketStatusMappingEntry>;
