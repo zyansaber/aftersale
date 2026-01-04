@@ -1,6 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Building2, Users, Wrench, ChevronLeft, ChevronRight, Shield, Ticket } from "lucide-react";
+import {
+  Building2,
+  Users,
+  Wrench,
+  ChevronLeft,
+  ChevronRight,
+  Shield,
+  Ticket,
+  MapPin,
+} from "lucide-react";
 import { useState } from "react";
 
 interface SidebarProps {
@@ -14,6 +23,7 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const tabs = [
     { id: "admin", label: "Admin", icon: Shield },
     { id: "tickets", label: "Tickets", icon: Ticket },
+    { id: "mapping", label: "Mapping", icon: MapPin },
     { id: "dealerships", label: "Dealerships", icon: Building2 },
     { id: "employees", label: "Internal Employees", icon: Users },
     { id: "repairs", label: "Repairs", icon: Wrench },
