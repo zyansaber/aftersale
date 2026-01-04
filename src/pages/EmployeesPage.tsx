@@ -21,7 +21,7 @@ const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
 const PAGE_SIZE = 50;
 
 export default function EmployeesPage() {
-  const { data, isLoading, error } = useVisibleTickets();
+  const { data, isLoading, error } = useVisibleTickets({ applyEmployeeVisibility: true });
   const [page, setPage] = useState(1);
 
   const employees = useMemo<EmployeeStats[]>(() => {
