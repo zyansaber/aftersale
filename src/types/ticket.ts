@@ -111,3 +111,17 @@ export interface RepairStats {
     high: number;
   };
 }
+
+export type EntityVisibilityCategory = "dealerships" | "employees" | "repairs";
+
+export interface DisplaySettings {
+  dealerships: Record<string, boolean>;
+  employees: Record<string, boolean>;
+  repairs: Record<string, boolean>;
+}
+
+export interface UpdateDisplaySettingPayload {
+  category: EntityVisibilityCategory;
+  entityId: string;
+  isVisible: boolean;
+}
