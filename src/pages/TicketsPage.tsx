@@ -15,12 +15,33 @@ import {
 import StatCard from "@/components/StatCard";
 import { AlertCircle, Clock, FileWarning, Ticket as TicketIcon } from "lucide-react";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
-import { parse } from "date-fns";
+import { endOfMonth, parse, startOfMonth } from "date-fns";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type ChartDatum = { name: string; value: number };
 
+const formatMonthKey = (date: Date) =>
+  `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}`;
+const DEFAULT_START_MONTH = "2025-01";
+const DEFAULT_END_MONTH = formatMonthKey(new Date());
+
+const parseMonthInput = (value?: string | null) => {
+  if (!value) return null;
+  const [year, month] = value.split("-").map(Number);
+  if (!year || !month) return null;
+
+  const baseDate = new Date(year, month - 1, 1);
+  return {
+    start: startOfMonth(baseDate),
+    end: endOfMonth(baseDate),
+  };
+};
+
 export default function TicketsPage() {
   const { data, isLoading, error } = useVisibleTickets();
+  const [startMonth, setStartMonth] = useState(DEFAULT_START_MONTH);
+  const [endMonth, setEndMonth] = useState(DEFAULT_END_MONTH);
   const [statusPage, setStatusPage] = useState(1);
   const [typePage, setTypePage] = useState(1);
   const PAGE_SIZE = 50;
@@ -30,10 +51,59 @@ export default function TicketsPage() {
     return Object.values(data.c4cTickets_test.tickets);
   }, [data]);
 
+  const ticketsWithDates = useMemo(
+    () =>
+      tickets.map((entry) => {
+        const createdDate = parse(entry.ticket.CreatedOn, "dd/MM/yyyy", new Date());
+        return {
+          entry,
+          createdDate: Number.isNaN(createdDate.getTime()) ? null : createdDate,
+        };
+      }),
+    [tickets]
+  );
+
+  const monthOptions = useMemo(() => {
+    const months = new Set<string>();
+    ticketsWithDates.forEach((ticket) => {
+      if (ticket.createdDate) {
+        months.add(formatMonthKey(ticket.createdDate));
+      }
+    });
+    return Array.from(months).sort();
+  }, [ticketsWithDates]);
+
+  const { filteredTicketEntries, filteredTicketDates, activeRange } = useMemo(() => {
+    const parsedStart = parseMonthInput(startMonth) ?? parseMonthInput(DEFAULT_START_MONTH);
+    const parsedEnd = parseMonthInput(endMonth) ?? parseMonthInput(DEFAULT_END_MONTH);
+
+    let startDate = parsedStart?.start ?? startOfMonth(new Date(2025, 0, 1));
+    let endDate = parsedEnd?.end ?? endOfMonth(new Date());
+
+    // Ensure the range is valid
+    if (startDate > endDate) {
+      startDate = parsedEnd?.start ?? startDate;
+      endDate = parsedEnd?.end ?? endDate;
+    }
+
+    const filtered = ticketsWithDates.filter(
+      (ticket) =>
+        ticket.createdDate !== null &&
+        ticket.createdDate >= startDate &&
+        ticket.createdDate <= endDate
+    );
+
+    return {
+      filteredTicketEntries: filtered.map((item) => item.entry),
+      filteredTicketDates: filtered,
+      activeRange: { start: startDate, end: endDate },
+    };
+  }, [endMonth, startMonth, ticketsWithDates]);
+
   useEffect(() => {
     setStatusPage(1);
     setTypePage(1);
-  }, [tickets.length]);
+  }, [filteredTicketEntries.length]);
 
   const {
     totalTickets,
@@ -44,7 +114,7 @@ export default function TicketsPage() {
     creationTrend,
     dateRangeLabel,
   } = useMemo(() => {
-    const total = tickets.length;
+    const total = filteredTicketEntries.length;
     let unapproved = 0;
     let unresponded = 0;
 
@@ -52,26 +122,27 @@ export default function TicketsPage() {
     const typeCount: Record<string, number> = {};
     const creationCount: Record<string, number> = {};
     const creationDates: Date[] = [];
+    const hiddenStatuses = ["repairer invoiced processed", "calins closed"];
 
-    tickets.forEach((entry) => {
+    filteredTicketEntries.forEach((entry) => {
       const ticket = entry.ticket;
       if (!ticket.ApprovalNumber) unapproved += 1;
       if (!ticket.Responded) unresponded += 1;
 
       statusCount[ticket.TicketStatusText] = (statusCount[ticket.TicketStatusText] || 0) + 1;
       typeCount[ticket.TicketTypeText] = (typeCount[ticket.TicketTypeText] || 0) + 1;
+    });
 
-      const parsedDate = parse(ticket.CreatedOn, "dd/MM/yyyy", new Date());
-      if (!Number.isNaN(parsedDate.getTime())) {
-        creationDates.push(parsedDate);
-        const monthKey = `${parsedDate.getFullYear()}-${(parsedDate.getMonth() + 1)
-          .toString()
-          .padStart(2, "0")}`;
+    filteredTicketDates.forEach((ticket) => {
+      if (ticket.createdDate) {
+        creationDates.push(ticket.createdDate);
+        const monthKey = formatMonthKey(ticket.createdDate);
         creationCount[monthKey] = (creationCount[monthKey] || 0) + 1;
       }
     });
 
     const statusList: ChartDatum[] = Object.entries(statusCount)
+      .filter(([name]) => !hiddenStatuses.some((hidden) => name.toLowerCase().includes(hidden)))
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
 
@@ -83,13 +154,19 @@ export default function TicketsPage() {
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    const earliest = creationDates.length ? new Date(Math.min(...creationDates.map((d) => d.getTime()))) : null;
-    const latest = creationDates.length ? new Date(Math.max(...creationDates.map((d) => d.getTime()))) : null;
+    const earliest = creationDates.length
+      ? new Date(Math.min(...creationDates.map((d) => d.getTime())))
+      : null;
+    const latest = creationDates.length
+      ? new Date(Math.max(...creationDates.map((d) => d.getTime())))
+      : null;
 
     const rangeLabel =
       earliest && latest
         ? `${earliest.toISOString().slice(0, 10)} → ${latest.toISOString().slice(0, 10)}`
-        : "N/A";
+        : `${activeRange.start.toISOString().slice(0, 10)} → ${activeRange.end
+            .toISOString()
+            .slice(0, 10)}`;
 
     return {
       totalTickets: total,
@@ -100,7 +177,7 @@ export default function TicketsPage() {
       creationTrend: trendList,
       dateRangeLabel: rangeLabel,
     };
-  }, [tickets]);
+  }, [activeRange.end, activeRange.start, filteredTicketDates, filteredTicketEntries]);
 
   const paginatedStatus = useMemo(() => {
     const start = (statusPage - 1) * PAGE_SIZE;
@@ -130,6 +207,49 @@ export default function TicketsPage() {
           trends.
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Created Date Range</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Select a month range to filter all ticket analytics. Defaults to January 2025 through
+            the current month.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="start-month">Start month</Label>
+              <Input
+                id="start-month"
+                type="month"
+                value={startMonth}
+                onChange={(event) => setStartMonth(event.target.value)}
+                list="month-options"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="end-month">End month</Label>
+              <Input
+                id="end-month"
+                type="month"
+                value={endMonth}
+                onChange={(event) => setEndMonth(event.target.value)}
+                list="month-options"
+              />
+            </div>
+          </div>
+          <datalist id="month-options">
+            {monthOptions.map((month) => (
+              <option key={month} value={month} />
+            ))}
+          </datalist>
+          <p className="text-sm text-muted-foreground mt-3">
+            Showing tickets from {activeRange.start.toISOString().slice(0, 10)} to{" "}
+            {activeRange.end.toISOString().slice(0, 10)}.
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
