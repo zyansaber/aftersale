@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EmployeeStats } from "@/types/ticket";
-import { analyzeEmployees, loadTicketData } from "@/utils/dataParser";
+import { analyzeEmployees } from "@/utils/dataParser";
 import StatCard from "@/components/StatCard";
 import { Users, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import {
@@ -14,23 +14,61 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatTimeBreakdown } from "@/utils/timeParser";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useTicketData } from "@/hooks/useTicketData";
+import { PaginationControls } from "@/components/PaginationControls";
 
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
+const PAGE_SIZE = 50;
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<EmployeeStats[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, error } = useTicketData();
+  const [page, setPage] = useState(1);
+
+  const employees = useMemo<EmployeeStats[]>(() => {
+    if (!data) return [];
+    return analyzeEmployees(data);
+  }, [data]);
 
   useEffect(() => {
-    loadTicketData().then((data) => {
-      const employeeStats = analyzeEmployees(data);
-      setEmployees(employeeStats);
-      setLoading(false);
-    });
-  }, []);
+    setPage(1);
+  }, [employees.length]);
 
-  if (loading) {
+  const workloadData = useMemo(
+    () =>
+      employees.slice(0, 10).map((emp) => ({
+        name: emp.employeeName,
+        active: emp.activeTickets,
+        completed: emp.completedTickets,
+      })),
+    [employees]
+  );
+
+  const statusChartData = useMemo(() => {
+    const statusData: Record<string, number> = {};
+    employees.forEach((emp) => {
+      Object.entries(emp.ticketsByStatus).forEach(([status, count]) => {
+        statusData[status] = (statusData[status] || 0) + count;
+      });
+    });
+
+    return Object.entries(statusData).map(([name, value]) => ({
+      name,
+      value,
+    }));
+  }, [employees]);
+
+  const paginatedEmployees = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return employees.slice(start, start + PAGE_SIZE);
+  }, [employees, page]);
+
+  if (isLoading) {
     return <div className="p-8">Loading employee data...</div>;
+  }
+
+  if (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return <div className="p-8 text-destructive">Failed to load employee data: {message}</div>;
   }
 
   const totalEmployees = employees.length;
@@ -38,26 +76,6 @@ export default function EmployeesPage() {
   const totalCompletedTickets = employees.reduce((sum, e) => sum + e.completedTickets, 0);
   const avgActivePerEmployee =
     totalEmployees > 0 ? (totalActiveTickets / totalEmployees).toFixed(1) : 0;
-
-  // Prepare workload distribution data
-  const workloadData = employees.slice(0, 10).map((emp) => ({
-    name: emp.employeeName,
-    active: emp.activeTickets,
-    completed: emp.completedTickets,
-  }));
-
-  // Status distribution
-  const statusData: Record<string, number> = {};
-  employees.forEach((emp) => {
-    Object.entries(emp.ticketsByStatus).forEach(([status, count]) => {
-      statusData[status] = (statusData[status] || 0) + count;
-    });
-  });
-
-  const statusChartData = Object.entries(statusData).map(([name, value]) => ({
-    name,
-    value,
-  }));
 
   return (
     <div className="space-y-6">
@@ -161,7 +179,7 @@ export default function EmployeesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {employees.map((employee) => {
+              {paginatedEmployees.map((employee) => {
                 const topStatus = Object.entries(employee.ticketsByStatus).sort(
                   ([, a], [, b]) => b - a
                 )[0];
@@ -188,6 +206,13 @@ export default function EmployeesPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <PaginationControls
+        totalItems={employees.length}
+        pageSize={PAGE_SIZE}
+        page={page}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
