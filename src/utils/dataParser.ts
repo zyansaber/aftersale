@@ -297,41 +297,6 @@ export function analyzeRepairs(data: TicketData): RepairStats[] {
     // Categorize cost ranges
     if (cost < 500) {
       stats.costRanges.low++;
-      } else if (cost < 2000) {
-        stats.costRanges.medium++;
-      } else {
-        stats.costRanges.high++;
-      }
-      return;
-    }
-
-    const repairId = repair.InvolvedPartyBusinessPartnerID;
-    const repairName = repair.RepairerBusinessNameID || "Unknown Repair Shop";
-
-    if (!repairMap.has(repairId)) {
-      repairMap.set(repairId, {
-        repairId,
-        repairName,
-        totalCost: 0,
-        avgCost: 0,
-        ticketCount: 0,
-        costByType: {},
-        costRanges: { low: 0, medium: 0, high: 0 },
-      });
-    }
-
-    const stats = repairMap.get(repairId)!;
-    const ticket = ticketEntry.ticket;
-    const cost = parseFloat(ticket.AmountIncludingTax) || 0;
-
-    stats.totalCost += cost;
-    stats.ticketCount++;
-    stats.costByType[ticket.TicketTypeText] =
-      (stats.costByType[ticket.TicketTypeText] || 0) + cost;
-
-    // Categorize cost ranges
-    if (cost < 500) {
-      stats.costRanges.low++;
     } else if (cost < 2000) {
       stats.costRanges.medium++;
     } else {
