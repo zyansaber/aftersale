@@ -1,30 +1,22 @@
 import { TicketData, DealerStats, EmployeeStats, RepairStats } from "@/types/ticket";
 import { parseTimeConsumed, averageTimeBreakdown } from "./timeParser";
-import { database, ref, onValue } from "@/lib/firebase";
+import { database, ref, get } from "@/lib/firebase";
 
 export async function loadTicketData(): Promise<TicketData> {
-  return new Promise((resolve, reject) => {
-    const ticketsRef = ref(database, "c4cTickets_test/tickets");
-    
-    onValue(
-      ticketsRef,
-      (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          resolve({
-            c4cTickets_test: {
-              tickets: data,
-            },
-          });
-        } else {
-          reject(new Error("No data available"));
-        }
-      },
-      (error) => {
-        reject(error);
-      }
-    );
-  });
+  const ticketsRef = ref(database, "c4cTickets_test/tickets");
+  const snapshot = await get(ticketsRef);
+
+  if (!snapshot.exists()) {
+    throw new Error("No ticket data available");
+  }
+
+  const data = snapshot.val();
+
+  return {
+    c4cTickets_test: {
+      tickets: data,
+    },
+  };
 }
 
 export function analyzeDealers(data: TicketData): DealerStats[] {
