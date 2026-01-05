@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { formatDistanceToNowStrict, parse, parseISO } from "date-fns";
+import { parse, parseISO } from "date-fns";
 import { TicketData } from "@/types/ticket";
 
 type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
@@ -21,7 +21,7 @@ type ClaimType = "In Field Warranty Claims" | "Pre Delivery Warranty claims";
 
 type RowBucket =
   | { id: string; label: string; type: "year"; year: number }
-  | { id: string; label: string; type: "open"; minMonths: number };
+  | { id: string; label: string; type: "open"; maxMonths: number };
 
 function parseTicketDate(raw: string) {
   if (!raw) return new Date("");
@@ -84,7 +84,7 @@ function buildMatrix(
         const created = parseTicketDate(ticket.ticket.CreatedOn);
         const age = monthsSince(created);
         if (Number.isNaN(age)) return false;
-        return age >= row.minMonths;
+        return age <= row.maxMonths;
       });
     }
 
@@ -110,10 +110,10 @@ const ROWS: RowBucket[] = [
   { id: "y2023", label: "Created in 2023", type: "year", year: 2023 },
   { id: "y2024", label: "Created in 2024", type: "year", year: 2024 },
   { id: "y2025", label: "Created in 2025", type: "year", year: 2025 },
-  { id: "open-1", label: "Open ≥ 1 month", type: "open", minMonths: 1 },
-  { id: "open-3", label: "Open ≥ 3 months", type: "open", minMonths: 3 },
-  { id: "open-7", label: "Open ≥ 7 months", type: "open", minMonths: 7 },
-  { id: "open-12", label: "Open ≥ 12 months", type: "open", minMonths: 12 },
+  { id: "open-1", label: "Open ≤ 1 month", type: "open", maxMonths: 1 },
+  { id: "open-3", label: "Open ≤ 3 months", type: "open", maxMonths: 3 },
+  { id: "open-6", label: "Open ≤ 6 months", type: "open", maxMonths: 6 },
+  { id: "open-12", label: "Open ≤ 12 months", type: "open", maxMonths: 12 },
 ];
 
 function MatrixTable({
