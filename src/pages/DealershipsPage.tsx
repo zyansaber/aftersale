@@ -272,7 +272,11 @@ export default function DealershipsPage() {
                     key={dealer.dealerId}
                     className="cursor-pointer transition hover:bg-muted/40"
                     onClick={() =>
-                      window.open(`/dealer-insights/${encodeURIComponent(dealer.dealerId)}`, "_blank", "noopener,noreferrer")
+                      window.open(
+                        `/dealer-insights/${encodeURIComponent(dealer.dealerId)}`,
+                        "_blank",
+                        "noopener,noreferrer,width=1400,height=900"
+                      )
                     }
                   >
                     <TableCell className="font-medium">{dealer.dealerName}</TableCell>
@@ -296,7 +300,7 @@ export default function DealershipsPage() {
                           window.open(
                             `/dealer-insights/${encodeURIComponent(dealer.dealerId)}`,
                             "_blank",
-                            "noopener,noreferrer"
+                            "noopener,noreferrer,width=1400,height=900"
                           );
                         }}
                       >
