@@ -1,3 +1,6 @@
++6
+-2
+
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -10,17 +13,19 @@ import AdminPage from "@/pages/AdminPage";
 import TicketsPage from "@/pages/TicketsPage";
 import MappingPage from "@/pages/MappingPage";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 const queryClient = new QueryClient();
 
 const AppShell = () => {
   const location = useLocation();
   const activeTab = location.pathname.split("/")[1] || "admin";
+  const hideSidebar = location.pathname.startsWith("/dealer-insights");
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar activeTab={activeTab} />
-      <main className="flex-1 ml-72 p-8 transition-all duration-300">
+      {!hideSidebar && <Sidebar activeTab={activeTab} />}
+      <main className={cn("flex-1 p-8 transition-all duration-300", hideSidebar ? "" : "ml-72")}>
         <Routes>
           <Route path="/" element={<Navigate to="/admin" replace />} />
           <Route path="/admin" element={<AdminPage />} />
