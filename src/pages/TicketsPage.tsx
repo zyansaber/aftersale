@@ -18,6 +18,9 @@ import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import { endOfMonth, parse, startOfMonth } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { useTicketStatusMapping } from "@/hooks/useTicketStatusMapping";
+import { filterTicketsByFirstLevelStatus } from "@/utils/dataParser";
 
 type ChartDatum = { name: string; value: number };
 
@@ -40,16 +43,27 @@ const parseMonthInput = (value?: string | null) => {
 
 export default function TicketsPage() {
   const { data, isLoading, error } = useVisibleTickets();
+  const mappingQuery = useTicketStatusMapping();
   const [startMonth, setStartMonth] = useState(DEFAULT_START_MONTH);
   const [endMonth, setEndMonth] = useState(DEFAULT_END_MONTH);
   const [statusPage, setStatusPage] = useState(1);
   const [typePage, setTypePage] = useState(1);
+  const [hideClosed, setHideClosed] = useState(true);
   const PAGE_SIZE = 50;
 
+  const filteredByFirstLevel = useMemo(() => {
+    if (!data) return undefined;
+    return hideClosed
+      ? filterTicketsByFirstLevelStatus(data, mappingQuery.data, {
+          excludedFirstLevelStatuses: ["Closed"],
+        })
+      : data;
+  }, [data, hideClosed, mappingQuery.data]);
+
   const tickets = useMemo(() => {
-    if (!data) return [];
-    return Object.values(data.c4cTickets_test.tickets);
-  }, [data]);
+    if (!filteredByFirstLevel) return [];
+    return Object.values(filteredByFirstLevel.c4cTickets_test.tickets);
+  }, [filteredByFirstLevel]);
 
   const ticketsWithDates = useMemo(
     () =>
@@ -189,13 +203,23 @@ export default function TicketsPage() {
     return typeData.slice(start, start + PAGE_SIZE);
   }, [typeData, typePage]);
 
-  if (isLoading) {
+  if (isLoading || mappingQuery.isLoading) {
     return <div className="p-8">Loading ticket analytics...</div>;
   }
 
-  if (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return <div className="p-8 text-destructive">Failed to load ticket analytics: {message}</div>;
+  if (error || mappingQuery.error) {
+    const ticketMessage = error instanceof Error ? error.message : "Unknown error";
+    const mappingMessage =
+      mappingQuery.error instanceof Error ? mappingQuery.error.message : "Mapping error";
+    return (
+      <div className="p-8 text-destructive">
+        Failed to load ticket analytics:
+        <ul className="list-disc list-inside mt-2 space-y-1">
+          <li>{ticketMessage}</li>
+          <li>{mappingMessage}</li>
+        </ul>
+      </div>
+    );
   }
 
   return (
@@ -215,6 +239,17 @@ export default function TicketsPage() {
             Select a month range to filter all ticket analytics. Defaults to January 2025 through
             the current month.
           </p>
+          <div className="mt-4 flex items-center gap-3">
+            <Switch
+              id="hide-closed"
+              checked={hideClosed}
+              onCheckedChange={setHideClosed}
+              disabled={mappingQuery.isLoading}
+            />
+            <Label htmlFor="hide-closed" className="text-sm font-medium">
+              Hide tickets with first-level status “Closed” (mapping)
+            </Label>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2">
