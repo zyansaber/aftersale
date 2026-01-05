@@ -18,7 +18,7 @@ export default function EmployeesPage() {
   const mappingQuery = useTicketStatusMapping();
   const [hideClosed, setHideClosed] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
 
   const filteredTickets = useMemo(() => {
     if (!data) return undefined;
@@ -55,7 +55,10 @@ export default function EmployeesPage() {
   );
 
   const selectedEmployee = useMemo(
-    () => employees.find((emp) => emp.employeeId === selectedEmployeeId),
+    () =>
+      selectedEmployeeId === "all"
+        ? undefined
+        : employees.find((emp) => emp.employeeId === selectedEmployeeId),
     [employees, selectedEmployeeId]
   );
 
@@ -167,7 +170,7 @@ export default function EmployeesPage() {
                   <SelectValue placeholder="Choose an employee to view status mix" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All employees</SelectItem>
+                  <SelectItem value="all">All employees</SelectItem>
                   {filteredEmployees.map((employee) => (
                     <SelectItem key={employee.employeeId} value={employee.employeeId}>
                       {employee.employeeName} ({employee.employeeId})
