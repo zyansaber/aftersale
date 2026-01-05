@@ -162,14 +162,7 @@ function MatrixTable({
                     </div>
                   </TableCell>
                 ))}
-                <TableCell className="font-semibold">
-                  {total}
-                  {row.type === "open" && total > 0 && (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {formatDistanceToNowStrict(new Date(), { addSuffix: true }).replace("in ", "")}
-                    </span>
-                  )}
-                </TableCell>
+                <TableCell className="font-semibold">{total}</TableCell>
                 <TableCell>
                   {row.type === "open" ? uniqueOpenNames ?? 0 : <span className="text-muted-foreground">-</span>}
                 </TableCell>
