@@ -3,16 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, CheckCircle2, Clock, TrendingUp } from "lucide-react";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Legend,
   Line,
-  LineChart,
   LabelList,
+  ComposedChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  Area,
 } from "recharts";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import { parseTimeConsumed } from "@/utils/timeParser";
@@ -47,10 +47,6 @@ type ChartRow = {
   month: string;
   created: number;
   completed: number;
-};
-
-type AverageRow = {
-  month: string;
   averageHours: number;
 };
 
@@ -74,8 +70,9 @@ type EmployeeCompletionCard = {
   averageHours: number;
 };
 
-const START_MONTH = startOfMonth(new Date(2025, 0, 1));
+const ROLLING_MONTHS = 3;
 const END_MONTH = endOfMonth(new Date());
+const START_MONTH = startOfMonth(addMonths(END_MONTH, -(ROLLING_MONTHS - 1)));
 
 function parseTicketDate(raw: string) {
   if (!raw) return new Date("");
@@ -176,86 +173,75 @@ export default function ClaimVsClosedPage() {
     } satisfies TicketData;
   }, [data, selectedEmployeeId]);
 
-  const { comparisonData, averageTrend, totalCreated, totalCompleted, averageHoursAcrossRange } =
-    useMemo(() => {
-      if (!scopedData) {
-        return {
-          comparisonData: [] as ChartRow[],
-          averageTrend: [] as AverageRow[],
-          totalCreated: 0,
-          totalCompleted: 0,
-          averageHoursAcrossRange: 0,
-        };
+  const { comparisonData, totalCreated, totalCompleted, averageHoursAcrossRange } = useMemo(() => {
+    if (!scopedData) {
+      return {
+        comparisonData: [] as ChartRow[],
+        totalCreated: 0,
+        totalCompleted: 0,
+        averageHoursAcrossRange: 0,
+      };
+    }
+
+    const buckets = new Map<string, MonthBucket>(
+      months.map((month) => [month.key, { createdCount: 0, completedCount: 0, totalMinutes: 0 }])
+    );
+
+    let totalCreated = 0;
+    let totalCompleted = 0;
+    let totalCompletionMinutes = 0;
+
+    Object.values(scopedData.c4cTickets_test.tickets).forEach((ticketEntry) => {
+      const created = parseTicketDate(ticketEntry.ticket.CreatedOn);
+      if (Number.isNaN(created.getTime())) return;
+
+      const createdMonth = startOfMonth(created);
+      const createdKey = format(createdMonth, "yyyy-MM");
+      if (createdMonth >= START_MONTH && createdMonth <= END_MONTH && buckets.has(createdKey)) {
+        const bucket = buckets.get(createdKey)!;
+        bucket.createdCount += 1;
+        totalCreated += 1;
       }
 
-      const buckets = new Map<string, MonthBucket>(
-        months.map((month) => [month.key, { createdCount: 0, completedCount: 0, totalMinutes: 0 }])
-      );
+      const consumed = parseTimeConsumed(ticketEntry.ticket.Z1Z8TimeConsumed);
+      if (consumed.totalMinutes <= 0) return;
 
-      let totalCreated = 0;
-      let totalCompleted = 0;
-      let totalCompletionMinutes = 0;
+      const completionDate = new Date(created.getTime() + consumed.totalMinutes * 60 * 1000);
+      if (Number.isNaN(completionDate.getTime())) return;
 
-      Object.values(scopedData.c4cTickets_test.tickets).forEach((ticketEntry) => {
-        const created = parseTicketDate(ticketEntry.ticket.CreatedOn);
-        if (Number.isNaN(created.getTime())) return;
+      const completionMonth = startOfMonth(completionDate);
+      const completionKey = format(completionMonth, "yyyy-MM");
 
-        const createdMonth = startOfMonth(created);
-        const createdKey = format(createdMonth, "yyyy-MM");
-        if (createdMonth >= START_MONTH && createdMonth <= END_MONTH && buckets.has(createdKey)) {
-          const bucket = buckets.get(createdKey)!;
-          bucket.createdCount += 1;
-          totalCreated += 1;
-        }
+      if (completionMonth < START_MONTH || completionMonth > END_MONTH || !buckets.has(completionKey)) return;
 
-        const consumed = parseTimeConsumed(ticketEntry.ticket.Z1Z8TimeConsumed);
-        if (consumed.totalMinutes <= 0) return;
+      const bucket = buckets.get(completionKey)!;
+      bucket.completedCount += 1;
+      bucket.totalMinutes += consumed.totalMinutes;
+      totalCompleted += 1;
+      totalCompletionMinutes += consumed.totalMinutes;
+    });
 
-        const completionDate = new Date(created.getTime() + consumed.totalMinutes * 60 * 1000);
-        if (Number.isNaN(completionDate.getTime())) return;
-
-        const completionMonth = startOfMonth(completionDate);
-        const completionKey = format(completionMonth, "yyyy-MM");
-
-        if (completionMonth < START_MONTH || completionMonth > END_MONTH || !buckets.has(completionKey)) return;
-
-        const bucket = buckets.get(completionKey)!;
-        bucket.completedCount += 1;
-        bucket.totalMinutes += consumed.totalMinutes;
-        totalCompleted += 1;
-        totalCompletionMinutes += consumed.totalMinutes;
-      });
-
-      const comparisonData: ChartRow[] = months.map((month) => {
-        const bucket = buckets.get(month.key)!;
-        return {
-          month: month.label,
-          created: bucket.createdCount,
-          completed: bucket.completedCount,
-        };
-      });
-
-      const averageTrend: AverageRow[] = months.map((month) => {
-        const bucket = buckets.get(month.key)!;
-        const averageMinutes =
-          bucket.completedCount > 0 ? bucket.totalMinutes / bucket.completedCount : 0;
-        return {
-          month: month.label,
-          averageHours: Number((averageMinutes / 60).toFixed(1)),
-        };
-      });
-
-      const averageHoursAcrossRange =
-        totalCompleted > 0 ? Number((totalCompletionMinutes / totalCompleted / 60).toFixed(1)) : 0;
-
+    const comparisonData: ChartRow[] = months.map((month) => {
+      const bucket = buckets.get(month.key)!;
+      const averageMinutes = bucket.completedCount > 0 ? bucket.totalMinutes / bucket.completedCount : 0;
       return {
-        comparisonData,
-        averageTrend,
-        totalCreated,
-        totalCompleted,
-        averageHoursAcrossRange,
+        month: month.label,
+        created: bucket.createdCount,
+        completed: bucket.completedCount,
+        averageHours: Number((averageMinutes / 60).toFixed(1)),
       };
-    }, [months, scopedData]);
+    });
+
+    const averageHoursAcrossRange =
+      totalCompleted > 0 ? Number((totalCompletionMinutes / totalCompleted / 60).toFixed(1)) : 0;
+
+    return {
+      comparisonData,
+      totalCreated,
+      totalCompleted,
+      averageHoursAcrossRange,
+    };
+  }, [months, scopedData]);
 
   const dailyAverageTrend = useMemo<DailyAverageRow[]>(() => {
     return months.map((month) => {
@@ -321,13 +307,15 @@ export default function ClaimVsClosedPage() {
     return nonZero.length > 0 ? nonZero[nonZero.length - 1].completedDailyAvg : 0;
   }, [dailyAverageTrend]);
 
+  const showCreatedLine = selectedEmployeeId === "all";
+
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div>
           <h2 className="text-3xl font-bold">Claim vs Closed</h2>
           <p className="text-muted-foreground mt-2">
-            Visualizing creation versus completion volumes and time consumed, starting from Jan 2025.
+            Visualizing creation versus completion volumes and time consumed across the last three months.
           </p>
         </div>
         <Card>
@@ -359,8 +347,8 @@ export default function ClaimVsClosedPage() {
       <div>
         <h2 className="text-3xl font-bold">Claim vs Closed</h2>
         <p className="text-muted-foreground mt-2">
-          Compare monthly ticket creation with completion months inferred from CreatedOn + Z1Z8 Time Consumed,
-          and track average hours consumed. Filter by employee to focus all charts and cards.
+          Compare ticket creation with completion months inferred from CreatedOn + Z1Z8 Time Consumed over a rolling
+          three-month window, and track average hours consumed. Filter by employee to focus all charts and cards.
         </p>
       </div>
 
@@ -396,7 +384,7 @@ export default function ClaimVsClosedPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Created (Jan 2025 → Now)"
+          title="Created (Last 3 Months)"
           value={totalCreated}
           description="Tickets created within the focused window"
           icon={Clock}
@@ -415,128 +403,102 @@ export default function ClaimVsClosedPage() {
         />
         <StatCard
           title="Date Window"
-          value="Jan 2025 → Current Month"
-          description="Limited range for faster, clearer insights"
+          value="Last 3 Months"
+          description="Rolling window to compare created vs completed"
           icon={AlertCircle}
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Avg Created per Day (Monthly)</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              CreatedOn counts divided by days in each month. Latest: {latestCreatedDailyAvg} per day.
-            </p>
-          </CardHeader>
-          <CardContent className="h-[380px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dailyAverageTrend}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(value) => `${value}`} tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value: number) => [`${value} / day`, "Average Created"]} />
-                <Legend />
-                <Line
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Daily Averages by Month</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Smooth comparison of created and completed tickets per day. Created disappears when focusing on a specific
+            employee. Latest completed pace: {latestCompletedDailyAvg} / day
+            {showCreatedLine ? `; created: ${latestCreatedDailyAvg} / day.` : "."}
+          </p>
+        </CardHeader>
+        <CardContent className="h-[380px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={dailyAverageTrend}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis tickFormatter={(value) => `${value}`} tick={{ fontSize: 12 }} />
+              <Tooltip formatter={(value: number, name) => [`${value} / day`, name === "createdDailyAvg" ? "Created per day" : "Completed per day"]} />
+              <Legend />
+              {showCreatedLine && (
+                <Area
                   type="monotone"
                   dataKey="createdDailyAvg"
                   name="Created per day"
+                  fill="#0ea5e933"
                   stroke="#0ea5e9"
                   strokeWidth={3}
                   dot={{ r: 4, fill: "#0ea5e9" }}
                   activeDot={{ r: 6 }}
                 >
                   <LabelList dataKey="createdDailyAvg" position="top" formatter={(value: number) => value.toFixed(2)} />
-                </Line>
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+                </Area>
+              )}
+              <Line
+                type="monotone"
+                dataKey="completedDailyAvg"
+                name="Completed per day"
+                stroke="#22c55e"
+                strokeWidth={4}
+                dot={{ r: 4, fill: "#22c55e" }}
+                activeDot={{ r: 6 }}
+              >
+                <LabelList dataKey="completedDailyAvg" position="top" formatter={(value: number) => value.toFixed(2)} />
+              </Line>
+            </ComposedChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Avg Completed per Day (Monthly)</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Completions inferred from Z1Z8 time per day. Latest: {latestCompletedDailyAvg} per day.
-            </p>
-          </CardHeader>
-          <CardContent className="h-[380px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dailyAverageTrend}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(value) => `${value}`} tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value: number) => [`${value} / day`, "Average Completed"]} />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="completedDailyAvg"
-                  name="Completed per day"
-                  stroke="#22c55e"
-                  strokeWidth={3}
-                  dot={{ r: 4, fill: "#22c55e" }}
-                  activeDot={{ r: 6 }}
-                >
-                  <LabelList dataKey="completedDailyAvg" position="top" formatter={(value: number) => value.toFixed(2)} />
-                </Line>
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Monthly Created vs Completed</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              CreatedOn month compared to completion month (CreatedOn + Z1Z8 time consumed).
-            </p>
-          </CardHeader>
-          <CardContent className="h-[420px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={comparisonData} barGap={12}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="created" name="Created" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="completed" name="Completed (Z1Z8)" fill="#22c55e" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Average Time Consumed per Completion</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Trend line of Z1Z8 time consumed (in hours) for completions each month.
-            </p>
-          </CardHeader>
-          <CardContent className="h-[420px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={averageTrend}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(value) => `${value}h`} tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value: number) => [`${value} hours`, "Average Time"]} />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="averageHours"
-                  name="Average Hours"
-                  stroke="#6366f1"
-                  strokeWidth={3}
-                  dot={{ r: 4, fill: "#6366f1" }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Monthly Created, Completed &amp; Time</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Full-width view of created vs completed counts with average hours consumed layered on top for the rolling
+            three-month window.
+          </p>
+        </CardHeader>
+        <CardContent className="h-[460px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={comparisonData} barGap={16}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tickFormatter={(value) => `${value}h`}
+                tick={{ fontSize: 12 }}
+              />
+              <Tooltip
+                formatter={(value: number, name) => {
+                  if (name === "averageHours") return [`${value} hours`, "Avg Time"];
+                  return [value, name === "created" ? "Created" : "Completed (Z1Z8)"];
+                }}
+              />
+              <Legend />
+              <Bar yAxisId="left" dataKey="created" name="Created" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
+              <Bar yAxisId="left" dataKey="completed" name="Completed (Z1Z8)" fill="#22c55e" radius={[6, 6, 0, 0]} />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="averageHours"
+                name="Avg Hours"
+                stroke="#6366f1"
+                strokeWidth={4}
+                dot={{ r: 4, fill: "#6366f1" }}
+                activeDot={{ r: 6 }}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       <Card className="shadow-sm">
         <CardHeader>
