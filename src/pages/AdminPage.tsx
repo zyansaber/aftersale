@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { summarizeEmployees } from "@/utils/dataParser";
 import { useTicketData } from "@/hooks/useTicketData";
 import { useDisplaySettings } from "@/hooks/useDisplaySettings";
 import { EntityVisibilityCategory } from "@/types/ticket";
+import { PageLoader } from "@/components/PageLoader";
 
 const Section = ({
   title,
@@ -40,10 +41,14 @@ export default function AdminPage() {
 
   if (isLoading || settingsLoading) {
     return (
-      <div className="p-8 flex items-center gap-3 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
-        Loading admin data...
-      </div>
+      <PageLoader
+        title="Loading admin visibility settings"
+        description="Fetching the ticket dataset and visibility preferences to keep navigation smooth."
+        tasks={[
+          { label: "Ticket dataset", progress: data ? 100 : 0 },
+          { label: "Visibility settings", progress: settings ? 100 : 0 },
+        ]}
+      />
     );
   }
 
