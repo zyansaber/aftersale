@@ -374,8 +374,8 @@ export default function DealershipsPage() {
         }}
         shouldScaleBackground
       >
-        <DrawerContent className="mx-auto max-w-6xl rounded-t-xl border bg-white shadow-2xl">
-          <DrawerHeader className="flex flex-col gap-2 border-b pb-4">
+        <DrawerContent className="mx-auto h-[85vh] max-w-7xl overflow-y-auto rounded-t-xl border bg-white shadow-2xl">
+          <DrawerHeader className="flex flex-col gap-2 border-b pb-4 px-6 pt-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm uppercase text-muted-foreground">Dealer Insight Workspace</p>
@@ -417,7 +417,7 @@ export default function DealershipsPage() {
             )}
           </DrawerHeader>
 
-          <div className="grid gap-6 p-6 md:grid-cols-2">
+          <div className="grid gap-6 px-6 pb-8 md:grid-cols-2">
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle>Amount Including Tax Distribution</CardTitle>
