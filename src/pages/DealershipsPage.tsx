@@ -46,6 +46,11 @@ export default function DealershipsPage() {
     setPage(1);
   }, [filteredDealers.length]);
 
+  const tickets = useMemo(
+    () => (data ? Object.values(data.c4cTickets_test.tickets) : []),
+    [data]
+  );
+
   const chartData = useMemo(() => {
     const ticketTypeData: Record<string, number> = {};
     filteredDealers.forEach((dealer) => {
@@ -66,17 +71,16 @@ export default function DealershipsPage() {
   }, [filteredDealers, page]);
 
   const dealerTicketMap = useMemo(() => {
-    if (!data) return {};
     type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
     const map: Record<string, TicketEntry[]> = {};
-    Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
+    tickets.forEach((ticketEntry) => {
       const dealer = ticketEntry.roles["1001"];
       const dealerId = dealer?.InvolvedPartyBusinessPartnerID ?? "unknown";
       map[dealerId] = map[dealerId] ?? [];
       map[dealerId].push(ticketEntry);
     });
     return map;
-  }, [data]);
+  }, [tickets]);
 
   const totalTickets = filteredDealers.reduce((sum, d) => sum + d.totalTickets, 0);
   const totalDealers = filteredDealers.length;
