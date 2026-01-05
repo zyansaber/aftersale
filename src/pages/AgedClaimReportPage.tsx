@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { formatDistanceToNowStrict, parseISO } from "date-fns";
+import { formatDistanceToNowStrict, parse, parseISO } from "date-fns";
 import { TicketData } from "@/types/ticket";
 
 type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
@@ -23,7 +23,15 @@ type RowBucket =
   | { id: string; label: string; type: "year"; year: number }
   | { id: string; label: string; type: "open"; minMonths: number };
 
+function parseTicketDate(raw: string) {
+  if (!raw) return new Date("");
+  const isoCandidate = new Date(raw);
+  if (!Number.isNaN(isoCandidate.getTime())) return isoCandidate;
+  return parse(raw, "dd/MM/yyyy", new Date());
+}
+
 function monthsSince(date: Date) {
+  if (Number.isNaN(date.getTime())) return Number.NaN;
   const now = new Date();
   return (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
 }
@@ -66,15 +74,16 @@ function buildMatrix(
 
     if (row.type === "year") {
       scoped = claimTickets.filter((ticket) => {
-        const created = parseISO(ticket.ticket.CreatedOn);
+        const created = parseTicketDate(ticket.ticket.CreatedOn);
         return created.getFullYear() === row.year;
       });
     } else {
       scoped = claimTickets.filter((ticket) => {
         const firstStatus = getFirstLevelStatus(ticket, mapping);
         if (!isOpenStatus(firstStatus)) return false;
-        const created = parseISO(ticket.ticket.CreatedOn);
+        const created = parseTicketDate(ticket.ticket.CreatedOn);
         const age = monthsSince(created);
+        if (Number.isNaN(age)) return false;
         return age >= row.minMonths;
       });
     }
