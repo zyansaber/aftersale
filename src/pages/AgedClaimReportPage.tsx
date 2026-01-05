@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { parse } from "date-fns";
 import { TicketData } from "@/types/ticket";
 import { PageLoader } from "@/components/PageLoader";
@@ -21,7 +22,65 @@ type ClaimType = "In Field Warranty Claims" | "Pre Delivery Warranty claims";
 
 type RowBucket =
   | { id: string; label: string; type: "year"; year: number }
-  | { id: string; label: string; type: "open"; maxMonths: number };
+  | { id: string; label: string; type: "created-age"; maxMonths: number };
+type NormalizedTicket = {
+  base: TicketEntry;
+  created: Date;
+  firstLevelStatus: string;
+  isOpen: boolean;
+  claimType: string;
+};
+type StatusPalette = {
+  badgeClass: string;
+  barColor: string;
+  dotClass: string;
+  textClass: string;
+};
+
+const STATUS_PRIORITY = ["Closed", "Open", "Parts", "Reparing", "Suspended"] as const;
+
+const STATUS_STYLES: Record<string, StatusPalette> = {
+  Closed: {
+    badgeClass: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    barColor: "#10b981",
+    dotClass: "bg-emerald-400",
+    textClass: "text-emerald-700",
+  },
+  Open: {
+    badgeClass: "bg-sky-50 text-sky-800 border-sky-200",
+    barColor: "#0ea5e9",
+    dotClass: "bg-sky-400",
+    textClass: "text-sky-700",
+  },
+  Parts: {
+    badgeClass: "bg-amber-50 text-amber-800 border-amber-200",
+    barColor: "#f59e0b",
+    dotClass: "bg-amber-400",
+    textClass: "text-amber-700",
+  },
+  Reparing: {
+    badgeClass: "bg-purple-50 text-purple-800 border-purple-200",
+    barColor: "#a855f7",
+    dotClass: "bg-purple-400",
+    textClass: "text-purple-700",
+  },
+  Suspended: {
+    badgeClass: "bg-rose-50 text-rose-800 border-rose-200",
+    barColor: "#ef4444",
+    dotClass: "bg-rose-400",
+    textClass: "text-rose-700",
+  },
+  default: {
+    badgeClass: "bg-slate-50 text-slate-800 border-slate-200",
+    barColor: "#94a3b8",
+    dotClass: "bg-slate-400",
+    textClass: "text-slate-700",
+  },
+};
+
+function getStatusPalette(status: string): StatusPalette {
+  return STATUS_STYLES[status] ?? STATUS_STYLES.default;
+}
 
 function parseTicketDate(raw: string) {
   if (!raw) return new Date("");
@@ -55,9 +114,13 @@ function buildMatrix(normalized: NormalizedTicket[], claimType: ClaimType, rows:
     (t) => (t.claimType || "").toLowerCase() === claimType.toLowerCase()
   );
 
-  const statusList = Array.from(new Set(claimTickets.map((t) => t.firstLevelStatus))).sort((a, b) =>
-    a.localeCompare(b)
-  );
+  const discoveredStatuses = Array.from(new Set(claimTickets.map((t) => t.firstLevelStatus)));
+  const statusList = [
+    ...STATUS_PRIORITY.filter((priority) => discoveredStatuses.includes(priority)),
+    ...discoveredStatuses
+      .filter((status) => !STATUS_PRIORITY.includes(status as (typeof STATUS_PRIORITY)[number]))
+      .sort((a, b) => a.localeCompare(b)),
+  ];
 
   const dataRows = rows.map((row) => {
     let scoped = claimTickets;
@@ -114,6 +177,10 @@ function MatrixTable({
     () => buildMatrix(tickets, title as ClaimType, ROWS),
     [tickets, title]
   );
+  const statusBarTemplate = STATUS_PRIORITY.map((status) => ({
+    status,
+    palette: getStatusPalette(status),
+  }));
 
   return (
     <Card className="shadow-sm">
@@ -122,36 +189,59 @@ function MatrixTable({
         <p className="text-sm text-muted-foreground">{subtitle}</p>
       </CardHeader>
       <CardContent className="overflow-x-auto">
-        <Table className="rounded-lg border">
+        <Table className="rounded-lg border text-[15px]">
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Created/Openness</TableHead>
+              <TableHead className="text-base font-semibold">Created/Openness</TableHead>
               {statusList.map((status) => (
-                <TableHead key={status}>{status || "Unmapped"}</TableHead>
+                <TableHead
+                  key={status}
+                  className={`text-base font-semibold ${getStatusPalette(status).textClass}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${getStatusPalette(status).dotClass}`} />
+                    <span>{status || "Unmapped"}</span>
+                  </div>
+                </TableHead>
               ))}
-              <TableHead>Total</TableHead>
-              <TableHead>opened customer claims</TableHead>
+              <TableHead className="text-base font-semibold">Total</TableHead>
+              <TableHead className="text-base font-semibold">Opened customer claims</TableHead>
+              <TableHead className="text-base font-semibold">Status mix</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {dataRows.map(({ row, total, byStatus, uniqueOpenNames }) => (
-              <TableRow key={row.id} className="hover:bg-muted/40">
-                <TableCell className="whitespace-nowrap font-medium">{row.label}</TableCell>
+              <TableRow key={row.id} className="hover:bg-muted/40 text-base">
+                <TableCell className="whitespace-nowrap font-semibold text-base">{row.label}</TableCell>
                 {byStatus.map((item) => (
                   <TableCell key={`${row.id}-${item.status}`}>
                     <div className="flex items-center gap-2">
-                      <span>{item.count}</span>
-                      <Badge variant="secondary" className="text-xs">{item.percent}%</Badge>
+                      <span className="text-lg font-semibold">{item.count}</span>
+                      <Badge
+                        variant="secondary"
+                        className={`text-sm px-2.5 py-1 font-semibold border ${getStatusPalette(item.status).badgeClass}`}
+                      >
+                        {item.percent}%
+                      </Badge>
                     </div>
                   </TableCell>
                 ))}
-                <TableCell className="font-semibold text-primary">
-                  <Badge variant="outline" className="text-base font-semibold px-3 py-1">
+                <TableCell className="font-semibold text-primary text-lg">
+                  <Badge variant="outline" className="text-lg font-semibold px-3 py-1.5">
                     {total}
                   </Badge>
                 </TableCell>
-                <TableCell className="font-medium">
+                <TableCell className="font-semibold text-lg">
                   {row.type === "created-age" ? uniqueOpenNames ?? 0 : <span className="text-muted-foreground">-</span>}
+                </TableCell>
+                <TableCell className="align-top">
+                  <StatusDistributionBar
+                    segments={statusBarTemplate.map(({ status, palette }) => ({
+                      status,
+                      color: palette.barColor,
+                      count: byStatus.find((item) => item.status === status)?.count ?? 0,
+                    }))}
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -219,17 +309,69 @@ export default function AgedClaimReportPage() {
         </p>
       </div>
 
-      <div className="grid gap-6">
-        <MatrixTable
-          title="In Field Warranty Claims"
-          subtitle="Includes yearly and open-aged buckets with status distribution"
-          tickets={normalizedTickets}
-        />
-        <MatrixTable
-          title="Pre Delivery Warranty claims"
-          subtitle="Includes yearly and open-aged buckets with status distribution"
-          tickets={normalizedTickets}
-        />
+      <Tabs defaultValue="in-field" className="space-y-4">
+        <TabsList className="w-fit border bg-muted/50">
+          <TabsTrigger value="in-field" className="text-base font-semibold px-4 py-2">
+            In Field Warranty Claims
+          </TabsTrigger>
+          <TabsTrigger value="pre-delivery" className="text-base font-semibold px-4 py-2">
+            Pre Delivery Warranty claims
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="in-field">
+          <MatrixTable
+            title="In Field Warranty Claims"
+            subtitle="Includes yearly and open-aged buckets with status distribution"
+            tickets={normalizedTickets}
+          />
+        </TabsContent>
+        <TabsContent value="pre-delivery">
+          <MatrixTable
+            title="Pre Delivery Warranty claims"
+            subtitle="Includes yearly and open-aged buckets with status distribution"
+            tickets={normalizedTickets}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function StatusDistributionBar({
+  segments,
+}: {
+  segments: { status: string; color: string; count: number }[];
+}) {
+  const total = segments.reduce((sum, segment) => sum + segment.count, 0);
+
+  if (total === 0) {
+    return (
+      <div className="flex h-14 min-w-[240px] items-center justify-center rounded-lg border bg-muted/30 text-sm text-muted-foreground">
+        No status data
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 min-w-[240px]">
+      <div className="flex h-14 overflow-hidden rounded-xl border bg-white shadow-inner">
+        {segments.map((segment) => (
+          <div
+            key={segment.status}
+            style={{ width: `${(segment.count / total) * 100}%`, backgroundColor: segment.color }}
+            className="h-full transition-all"
+          />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+        {segments.map((segment) => (
+          <div key={`${segment.status}-legend`} className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: segment.color }} />
+            <span className="truncate">{segment.status}</span>
+            <span className="text-[11px] text-foreground/70 font-semibold">{segment.count}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
