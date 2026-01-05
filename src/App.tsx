@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Sidebar from "@/components/Sidebar";
 import DealershipsPage from "@/pages/DealershipsPage";
 import DealerInsightPage from "@/pages/DealerInsightPage";
+import AgedClaimReportPage from "@/pages/AgedClaimReportPage";
 import EmployeesPage from "@/pages/EmployeesPage";
 import RepairsPage from "@/pages/RepairsPage";
 import AdminPage from "@/pages/AdminPage";
@@ -30,6 +31,7 @@ const AppShell = () => {
           <Route path="/mapping" element={<MappingPage />} />
           <Route path="/dealerships" element={<DealershipsPage />} />
           <Route path="/dealer-insights/:dealerId" element={<DealerInsightPage />} />
+          <Route path="/aged-claim-report" element={<AgedClaimReportPage />} />
           <Route path="/employees" element={<EmployeesPage />} />
           <Route path="/repairs" element={<RepairsPage />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />
