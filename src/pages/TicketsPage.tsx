@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Bar,
@@ -46,10 +46,7 @@ export default function TicketsPage() {
   const mappingQuery = useTicketStatusMapping();
   const [startMonth, setStartMonth] = useState(DEFAULT_START_MONTH);
   const [endMonth, setEndMonth] = useState(DEFAULT_END_MONTH);
-  const [statusPage, setStatusPage] = useState(1);
-  const [typePage, setTypePage] = useState(1);
   const [hideClosed, setHideClosed] = useState(true);
-  const PAGE_SIZE = 50;
 
   const filteredByFirstLevel = useMemo(() => {
     if (!data) return undefined;
@@ -113,11 +110,6 @@ export default function TicketsPage() {
       activeRange: { start: startDate, end: endDate },
     };
   }, [endMonth, startMonth, ticketsWithDates]);
-
-  useEffect(() => {
-    setStatusPage(1);
-    setTypePage(1);
-  }, [filteredTicketEntries.length]);
 
   const {
     totalTickets,
@@ -192,16 +184,6 @@ export default function TicketsPage() {
       dateRangeLabel: rangeLabel,
     };
   }, [activeRange.end, activeRange.start, filteredTicketDates, filteredTicketEntries]);
-
-  const paginatedStatus = useMemo(() => {
-    const start = (statusPage - 1) * PAGE_SIZE;
-    return statusData.slice(start, start + PAGE_SIZE);
-  }, [statusData, statusPage]);
-
-  const paginatedTypes = useMemo(() => {
-    const start = (typePage - 1) * PAGE_SIZE;
-    return typeData.slice(start, start + PAGE_SIZE);
-  }, [typeData, typePage]);
 
   if (isLoading || mappingQuery.isLoading) {
     return <div className="p-8">Loading ticket analytics...</div>;
@@ -334,88 +316,41 @@ export default function TicketsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Status Distribution</CardTitle>
+            <CardTitle>Ticket Types</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={paginatedStatus}>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={typeData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" angle={-30} textAnchor="end" height={100} />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="value" fill="#10B981" name="Count" />
+                <Bar dataKey="value" fill="#0EA5E9" name="Tickets" />
               </BarChart>
             </ResponsiveContainer>
-            <div className="flex justify-between text-sm text-muted-foreground mt-2">
-              <span>
-                Page {statusPage} / {Math.max(1, Math.ceil(statusData.length / PAGE_SIZE))}
-              </span>
-              <div className="space-x-2">
-                <button
-                  className="underline disabled:text-slate-300"
-                  disabled={statusPage === 1}
-                  onClick={() => setStatusPage((prev) => Math.max(1, prev - 1))}
-                >
-                  Previous
-                </button>
-                <button
-                  className="underline disabled:text-slate-300"
-                  disabled={statusPage === Math.max(1, Math.ceil(statusData.length / PAGE_SIZE))}
-                  onClick={() =>
-                    setStatusPage((prev) =>
-                      Math.min(Math.max(1, Math.ceil(statusData.length / PAGE_SIZE)), prev + 1)
-                    )
-                  }
-                >
-                  Next
-                </button>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Ticket Types</CardTitle>
+          <CardTitle>Status Distribution</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Sorted by total tickets; hovering shows exact ticket counts.
+          </p>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={paginatedTypes}>
+          <ResponsiveContainer width="100%" height={360}>
+            <BarChart data={statusData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" angle={-30} textAnchor="end" height={100} />
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="value" fill="#F59E0B" name="Count" />
+              <Bar dataKey="value" fill="#10B981" name="Tickets" />
             </BarChart>
           </ResponsiveContainer>
-          <div className="flex justify-between text-sm text-muted-foreground mt-2">
-            <span>
-              Page {typePage} / {Math.max(1, Math.ceil(typeData.length / PAGE_SIZE))}
-            </span>
-            <div className="space-x-2">
-              <button
-                className="underline disabled:text-slate-300"
-                disabled={typePage === 1}
-                onClick={() => setTypePage((prev) => Math.max(1, prev - 1))}
-              >
-                Previous
-              </button>
-              <button
-                className="underline disabled:text-slate-300"
-                disabled={typePage === Math.max(1, Math.ceil(typeData.length / PAGE_SIZE))}
-                onClick={() =>
-                  setTypePage((prev) =>
-                    Math.min(Math.max(1, Math.ceil(typeData.length / PAGE_SIZE)), prev + 1)
-                  )
-                }
-              >
-                Next
-              </button>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>
