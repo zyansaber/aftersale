@@ -35,18 +35,23 @@ export default function DealerInsightPage() {
     return analyzeDealers(data);
   }, [data]);
 
+  const tickets = useMemo(
+    () => (data ? Object.values(data.c4cTickets_test.tickets) : []),
+    [data]
+  );
+
   const [startMonth, setStartMonth] = useState("2025-01");
 
   const selectedDealer = dealers.find((d) => d.dealerId === dealerId);
 
   const dealerTickets = useMemo(() => {
-    if (!data || !dealerId) return [] as TicketEntry[];
-    return Object.values(data.c4cTickets_test.tickets).filter((ticketEntry) => {
+    if (!dealerId) return [] as TicketEntry[];
+    return tickets.filter((ticketEntry) => {
       const dealer = ticketEntry.roles["1001"];
       const id = dealer?.InvolvedPartyBusinessPartnerID ?? "unknown";
       return id === dealerId;
     });
-  }, [data, dealerId]);
+  }, [dealerId, tickets]);
 
   const amountDistribution = useMemo(() => {
     const buckets = [
