@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DealerStats, TicketData } from "@/types/ticket";
 import { analyzeDealers } from "@/utils/dataParser";
 import StatCard from "@/components/StatCard";
-import { ArrowUpRight, Building2, Clock, FileText, TrendingUp } from "lucide-react";
+import { ArrowUpRight, Building2, Clock, FileText, Loader2, TrendingUp } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -32,13 +32,15 @@ import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import { PaginationControls } from "@/components/PaginationControls";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
 const PAGE_SIZE = 50;
@@ -173,13 +175,50 @@ export default function DealershipsPage() {
       .map(([month, value]) => ({ month, value }));
   }, [selectedTickets]);
 
-  if (isLoading) {
-    return <div className="p-8">Loading dealership data...</div>;
-  }
-
   if (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return <div className="p-8 text-destructive">Failed to load dealership data: {message}</div>;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-8">
+        <Card className="w-full max-w-2xl shadow-sm">
+          <CardHeader className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <p className="font-medium">Loading dealership insights…</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Optimizing charts and metrics for large datasets. This may take a moment.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Progress value={65} />
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-md border bg-muted/40 p-3">
+                <div className="text-xs text-muted-foreground">Preparing ticket stats</div>
+                <div className="mt-1 h-2 rounded-full bg-primary/20">
+                  <div className="h-2 w-5/6 rounded-full bg-primary" />
+                </div>
+              </div>
+              <div className="rounded-md border bg-muted/40 p-3">
+                <div className="text-xs text-muted-foreground">Aggregating dealers</div>
+                <div className="mt-1 h-2 rounded-full bg-primary/20">
+                  <div className="h-2 w-3/4 rounded-full bg-primary" />
+                </div>
+              </div>
+              <div className="rounded-md border bg-muted/40 p-3">
+                <div className="text-xs text-muted-foreground">Building charts</div>
+                <div className="mt-1 h-2 rounded-full bg-primary/20">
+                  <div className="h-2 w-2/3 rounded-full bg-primary" />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -367,152 +406,155 @@ export default function DealershipsPage() {
         onPageChange={setPage}
       />
 
-      <Drawer
+      <Dialog
         open={!!selectedDealer}
         onOpenChange={(open) => {
           if (!open) setSelectedDealer(null);
         }}
-        shouldScaleBackground
       >
-        <DrawerContent className="mx-auto h-[85vh] max-w-7xl overflow-y-auto rounded-t-xl border bg-white shadow-2xl">
-          <DrawerHeader className="flex flex-col gap-2 border-b pb-4 px-6 pt-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm uppercase text-muted-foreground">Dealer Insight Workspace</p>
-                <DrawerTitle className="text-2xl">
-                  {selectedDealer?.dealerName || "Dealer"}{" "}
-                  <span className="text-muted-foreground font-normal">
-                    #{selectedDealer?.dealerId}
-                  </span>
-                </DrawerTitle>
-                <p className="text-muted-foreground">
-                  Pro view: amount ranges, chassis repeat frequency, status mix, and CreatedOn trend
-                </p>
+        <DialogContent className="max-w-6xl md:max-w-7xl overflow-hidden border-0 bg-transparent p-0 shadow-none">
+          <div className="mx-auto flex h-[88vh] w-[95vw] max-w-7xl flex-col overflow-hidden rounded-2xl border bg-white shadow-2xl">
+            <DialogHeader className="border-b px-8 py-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm uppercase text-muted-foreground">Dealer Insight Window</p>
+                  <DialogTitle className="text-2xl">
+                    {selectedDealer?.dealerName || "Dealer"}{" "}
+                    <span className="text-muted-foreground font-normal">
+                      #{selectedDealer?.dealerId}
+                    </span>
+                  </DialogTitle>
+                  <DialogDescription>
+                    Focused analytics without the sidebar: amount ranges, chassis frequency, status mix, and CreatedOn trend.
+                  </DialogDescription>
+                </div>
+                <DialogClose asChild>
+                  <Button variant="outline">Close</Button>
+                </DialogClose>
               </div>
-              <DrawerClose asChild>
-                <Button variant="outline">Close</Button>
-              </DrawerClose>
+              {selectedDealer && (
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <StatCard
+                    title="Tickets"
+                    value={selectedDealer.totalTickets}
+                    description="Total related tickets"
+                    icon={FileText}
+                  />
+                  <StatCard
+                    title="Unique Chassis"
+                    value={selectedDealer.chassisNumbers.length}
+                    description="Distinct chassis numbers"
+                    icon={TrendingUp}
+                  />
+                  <StatCard
+                    title="Avg Time"
+                    value={formatTimeBreakdown(selectedDealer.avgTimeConsumed)}
+                    description="Average handling time"
+                    icon={Clock}
+                  />
+                </div>
+              )}
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto px-8 pb-8 pt-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card className="shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Amount Including Tax Distribution</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[320px]">
+                    {amountDistribution.some((b) => b.count > 0) ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={amountDistribution}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="count" fill="#3B82F6" name="Tickets" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="text-muted-foreground text-center mt-10">No amount data</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Chassis Number Repeat Range</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[320px]">
+                    {chassisDuplicateDistribution.some((b) => b.count > 0) ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chassisDuplicateDistribution}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="label" />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="count" fill="#10B981" name="Chassis IDs" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="text-muted-foreground text-center mt-10">No chassis repeat data</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Status Volume</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[320px]">
+                    {statusCounts.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={statusCounts}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" interval={0} angle={-25} textAnchor="end" height={80} />
+                          <YAxis />
+                          <Tooltip />
+                          <Bar dataKey="value" fill="#F59E0B" name="Tickets" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="text-muted-foreground text-center mt-10">No status data</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="md:col-span-2 shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Ticket CreatedOn Trend</CardTitle>
+                  </CardHeader>
+                  <CardContent className="h-[360px]">
+                    {ticketTrend.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={ticketTrend}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" />
+                          <YAxis allowDecimals={false} />
+                          <Tooltip />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="value"
+                            name="Ticket Count"
+                            stroke="#8B5CF6"
+                            strokeWidth={3}
+                            dot={{ r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="text-muted-foreground text-center mt-10">No trend data</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-            {selectedDealer && (
-              <div className="grid gap-3 md:grid-cols-3">
-                <StatCard
-                  title="Tickets"
-                  value={selectedDealer.totalTickets}
-                  description="Total related tickets"
-                  icon={FileText}
-                />
-                <StatCard
-                  title="Unique Chassis"
-                  value={selectedDealer.chassisNumbers.length}
-                  description="Distinct chassis numbers"
-                  icon={TrendingUp}
-                />
-                <StatCard
-                  title="Avg Time"
-                  value={formatTimeBreakdown(selectedDealer.avgTimeConsumed)}
-                  description="Average handling time"
-                  icon={Clock}
-                />
-              </div>
-            )}
-          </DrawerHeader>
-
-          <div className="grid gap-6 px-6 pb-8 md:grid-cols-2">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>Amount Including Tax Distribution</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[320px]">
-                {amountDistribution.some((b) => b.count > 0) ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={amountDistribution}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#3B82F6" name="Tickets" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-muted-foreground text-center mt-10">No amount data</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>Chassis Number Repeat Range</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[320px]">
-                {chassisDuplicateDistribution.some((b) => b.count > 0) ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chassisDuplicateDistribution}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#10B981" name="Chassis IDs" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-muted-foreground text-center mt-10">No chassis repeat data</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>Status Volume</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[320px]">
-                {statusCounts.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={statusCounts}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" interval={0} angle={-25} textAnchor="end" height={80} />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="value" fill="#F59E0B" name="Tickets" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-muted-foreground text-center mt-10">No status data</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="md:col-span-2 shadow-sm">
-              <CardHeader>
-                <CardTitle>Ticket CreatedOn Trend</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[360px]">
-                {ticketTrend.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={ticketTrend}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="value"
-                        name="Ticket Count"
-                        stroke="#8B5CF6"
-                        strokeWidth={3}
-                        dot={{ r: 4 }}
-                        activeDot={{ r: 6 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="text-muted-foreground text-center mt-10">No trend data</p>
-                )}
-              </CardContent>
-            </Card>
           </div>
-        </DrawerContent>
-      </Drawer>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
