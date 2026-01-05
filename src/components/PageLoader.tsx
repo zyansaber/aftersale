@@ -50,7 +50,7 @@ export function PageLoader({ title, description, tasks = [] }: PageLoaderProps) 
 
           <div className="space-y-3 rounded-2xl border bg-white/60 p-5 shadow-sm backdrop-blur-sm">
             <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Loading Data, Please wait</span>
+              <span>Preparing data, please wait</span>
               <span className="font-semibold text-foreground">{percentage}%</span>
             </div>
             <Progress value={percentage} className="h-3" />
@@ -83,7 +83,7 @@ export function PageLoader({ title, description, tasks = [] }: PageLoaderProps) 
                   <div className="flex-1">
                     <p className="font-medium leading-tight">{task.label}</p>
                     <p className="text-xs text-muted-foreground">
-                      {isDone ? "Completed" : "Synchronizing"}
+                      {isDone ? "Done" : "Syncing…"}
                     </p>
                   </div>
                   <span className="text-xs font-semibold text-muted-foreground">{value}%</span>
