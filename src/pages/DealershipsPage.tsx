@@ -1,34 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { useEffect, useMemo, useState } from "react";
-import { DealerStats } from "@/types/ticket";
 import { DealerStats, TicketData } from "@/types/ticket";
 import { analyzeDealers } from "@/utils/dataParser";
-import { analyzeDealers } from "@/utils/dataParser";
 import StatCard from "@/components/StatCard";
-import StatCard from "@/components/StatCard";
-import { Building2, FileText, Clock, TrendingUp } from "lucide-react";
 import { ArrowUpRight, Building2, Clock, FileText, TrendingUp } from "lucide-react";
 import {
-import {
-  Table,
   Table,
   TableBody,
-  TableBody,
-  TableCell,
   TableCell,
   TableHead,
-  TableHead,
-  TableHeader,
   TableHeader,
   TableRow,
-  TableRow,
-} from "@/components/ui/table";
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatTimeBreakdown } from "@/utils/timeParser";
-import { formatTimeBreakdown } from "@/utils/timeParser";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import {
   BarChart,
   Bar,
@@ -45,8 +29,6 @@ import {
   Line,
 } from "recharts";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
-import { useVisibleTickets } from "@/hooks/useVisibleTickets";
-import { PaginationControls } from "@/components/PaginationControls";
 import { PaginationControls } from "@/components/PaginationControls";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -58,32 +40,19 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 
-
-const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
 const PAGE_SIZE = 50;
-const PAGE_SIZE = 50;
-
 
 export default function DealershipsPage() {
-export default function DealershipsPage() {
-  const { data, isLoading, error } = useVisibleTickets();
   const { data, isLoading, error } = useVisibleTickets();
   const [hideBlankDealers, setHideBlankDealers] = useState(true);
   const [page, setPage] = useState(1);
-  const [page, setPage] = useState(1);
   const [selectedDealer, setSelectedDealer] = useState<DealerStats | null>(null);
 
-
-  const dealers = useMemo<DealerStats[]>(() => {
   const dealers = useMemo<DealerStats[]>(() => {
     if (!data) return [];
-    if (!data) return [];
-    return analyzeDealers(data);
     return analyzeDealers(data);
   }, [data]);
-  }, [data]);
-
 
   const filteredDealers = useMemo(() => {
     if (!hideBlankDealers) return dealers;
@@ -95,48 +64,26 @@ export default function DealershipsPage() {
   }, [dealers, hideBlankDealers]);
 
   useEffect(() => {
-  useEffect(() => {
     setPage(1);
-    setPage(1);
-  }, [dealers.length]);
   }, [filteredDealers.length]);
 
-
-  const chartData = useMemo(() => {
   const chartData = useMemo(() => {
     const ticketTypeData: Record<string, number> = {};
-    const ticketTypeData: Record<string, number> = {};
-    dealers.forEach((dealer) => {
     filteredDealers.forEach((dealer) => {
       Object.entries(dealer.ticketsByType).forEach(([type, count]) => {
-      Object.entries(dealer.ticketsByType).forEach(([type, count]) => {
-        ticketTypeData[type] = (ticketTypeData[type] || 0) + count;
         ticketTypeData[type] = (ticketTypeData[type] || 0) + count;
       });
-      });
-    });
     });
 
-
-    return Object.entries(ticketTypeData).map(([name, value]) => ({
     return Object.entries(ticketTypeData).map(([name, value]) => ({
       name,
-      name,
-      value,
       value,
     }));
-    }));
-  }, [dealers]);
   }, [filteredDealers]);
 
-
-  const paginatedDealers = useMemo(() => {
   const paginatedDealers = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
-    const start = (page - 1) * PAGE_SIZE;
-    return dealers.slice(start, start + PAGE_SIZE);
     return filteredDealers.slice(start, start + PAGE_SIZE);
-  }, [dealers, page]);
   }, [filteredDealers, page]);
 
   const dealerTicketMap = useMemo(() => {
@@ -226,42 +173,21 @@ export default function DealershipsPage() {
       .map(([month, value]) => ({ month, value }));
   }, [selectedTickets]);
 
-
-  if (isLoading) {
   if (isLoading) {
     return <div className="p-8">Loading dealership data...</div>;
-    return <div className="p-8">Loading dealership data...</div>;
   }
-  }
-
 
   if (error) {
-  if (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
     const message = error instanceof Error ? error.message : "Unknown error";
     return <div className="p-8 text-destructive">Failed to load dealership data: {message}</div>;
-    return <div className="p-8 text-destructive">Failed to load dealership data: {message}</div>;
-  }
   }
 
-
-  const totalTickets = dealers.reduce((sum, d) => sum + d.totalTickets, 0);
-  const totalDealers = dealers.length;
-  const avgTicketsPerDealer = totalDealers > 0 ? (totalTickets / totalDealers).toFixed(1) : 0;
-
-  return (
   return (
     <div className="space-y-6">
-    <div className="space-y-6">
-      <div>
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <h2 className="text-3xl font-bold">Dealership Analysis</h2>
         <div>
-        <p className="text-muted-foreground mt-2">
           <h2 className="text-3xl font-bold">Dealership Analysis</h2>
-          Overview of all dealerships and their ticket management
           <p className="text-muted-foreground mt-2">
-        </p>
             Overview of all dealerships and their ticket management
           </p>
         </div>
@@ -269,7 +195,7 @@ export default function DealershipsPage() {
           <div className="text-sm">
             <div className="font-medium">Hide blank dealer names</div>
             <p className="text-muted-foreground">
-              默认隐藏空白/未知的经销商，可随时切换查看
+              Hide empty or unknown dealer names by default; toggle to include them
             </p>
           </div>
           <Switch
@@ -279,267 +205,138 @@ export default function DealershipsPage() {
           />
         </div>
       </div>
-      </div>
-
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
         <StatCard
           title="Total Dealerships"
-          title="Total Dealerships"
-          value={totalDealers}
           value={totalDealers}
           icon={Building2}
-          icon={Building2}
-          description="Active dealerships"
           description="Active dealerships"
         />
-        />
-        <StatCard
         <StatCard
           title="Total Tickets"
-          title="Total Tickets"
-          value={totalTickets}
           value={totalTickets}
           icon={FileText}
-          icon={FileText}
-          description="All dealership tickets"
           description="All dealership tickets"
         />
-        />
-        <StatCard
         <StatCard
           title="Avg Tickets/Dealer"
-          title="Avg Tickets/Dealer"
-          value={avgTicketsPerDealer}
           value={avgTicketsPerDealer}
           icon={TrendingUp}
-          icon={TrendingUp}
-          description="Average workload"
           description="Average workload"
         />
-        />
-        <StatCard
         <StatCard
           title="Avg Processing Time"
-          title="Avg Processing Time"
           value={
-          value={
-            dealers.length > 0
             filteredDealers.length > 0
               ? formatTimeBreakdown(
-              ? formatTimeBreakdown(
-                  dealers.reduce(
                   filteredDealers.reduce(
                     (acc, d) => ({
-                    (acc, d) => ({
-                      days: acc.days + d.avgTimeConsumed.days,
                       days: acc.days + d.avgTimeConsumed.days,
                       hours: acc.hours + d.avgTimeConsumed.hours,
-                      hours: acc.hours + d.avgTimeConsumed.hours,
-                      minutes: acc.minutes + d.avgTimeConsumed.minutes,
                       minutes: acc.minutes + d.avgTimeConsumed.minutes,
                       totalMinutes: acc.totalMinutes + d.avgTimeConsumed.totalMinutes,
-                      totalMinutes: acc.totalMinutes + d.avgTimeConsumed.totalMinutes,
-                    }),
                     }),
                     { days: 0, hours: 0, minutes: 0, totalMinutes: 0 }
-                    { days: 0, hours: 0, minutes: 0, totalMinutes: 0 }
-                  )
                   )
                 )
-                )
-              : "0m"
               : "0m"
           }
-          }
-          icon={Clock}
           icon={Clock}
           description="Average time per ticket"
-          description="Average time per ticket"
-        />
         />
       </div>
-      </div>
-
 
       <div className="grid gap-4 md:grid-cols-2">
-      <div className="grid gap-4 md:grid-cols-2">
         <Card>
-        <Card>
-          <CardHeader>
           <CardHeader>
             <CardTitle>Ticket Types Distribution</CardTitle>
-            <CardTitle>Ticket Types Distribution</CardTitle>
-          </CardHeader>
           </CardHeader>
           <CardContent>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
-              <PieChart>
-                <Pie
                 <Pie
                   data={chartData}
-                  data={chartData}
-                  cx="50%"
                   cx="50%"
                   cy="50%"
-                  cy="50%"
-                  labelLine={false}
                   labelLine={false}
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
                   outerRadius={80}
                   fill="#8884d8"
-                  fill="#8884d8"
-                  dataKey="value"
                   dataKey="value"
                 >
-                >
-                  {chartData.map((entry, index) => (
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
                   ))}
                 </Pie>
-                </Pie>
-                <Tooltip />
                 <Tooltip />
               </PieChart>
-              </PieChart>
-            </ResponsiveContainer>
             </ResponsiveContainer>
           </CardContent>
-          </CardContent>
-        </Card>
         </Card>
 
-
-        <Card>
         <Card>
           <CardHeader>
-          <CardHeader>
-            <CardTitle>Top Dealerships by Tickets</CardTitle>
             <CardTitle>Top Dealerships by Tickets</CardTitle>
           </CardHeader>
-          </CardHeader>
-          <CardContent>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dealers.slice(0, 5)}>
               <BarChart data={filteredDealers.slice(0, 5)}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="dealerName" angle={-45} textAnchor="end" height={100} />
                 <XAxis dataKey="dealerName" angle={-45} textAnchor="end" height={100} />
                 <YAxis />
-                <YAxis />
-                <Tooltip />
                 <Tooltip />
                 <Legend />
-                <Legend />
-                <Bar dataKey="totalTickets" fill="#3B82F6" name="Total Tickets" />
                 <Bar dataKey="totalTickets" fill="#3B82F6" name="Total Tickets" />
               </BarChart>
-              </BarChart>
-            </ResponsiveContainer>
             </ResponsiveContainer>
           </CardContent>
-          </CardContent>
-        </Card>
         </Card>
       </div>
-      </div>
-
 
       <Card>
-      <Card>
-        <CardHeader>
         <CardHeader>
           <CardTitle>Dealership Details</CardTitle>
-          <CardTitle>Dealership Details</CardTitle>
-        </CardHeader>
         </CardHeader>
         <CardContent>
-        <CardContent>
-          <Table>
           <Table>
             <TableHeader>
-            <TableHeader>
-              <TableRow>
               <TableRow>
                 <TableHead>Dealer Name</TableHead>
-                <TableHead>Dealer Name</TableHead>
-                <TableHead>Dealer ID</TableHead>
                 <TableHead>Dealer ID</TableHead>
                 <TableHead className="text-right">Total Tickets</TableHead>
-                <TableHead className="text-right">Total Tickets</TableHead>
-                <TableHead className="text-right">Chassis Numbers</TableHead>
                 <TableHead className="text-right">Chassis Numbers</TableHead>
                 <TableHead className="text-right">Avg Time</TableHead>
-                <TableHead className="text-right">Avg Time</TableHead>
                 <TableHead>Top Status</TableHead>
-                <TableHead>Top Status</TableHead>
-                <TableHead>Top Type</TableHead>
                 <TableHead>Top Type</TableHead>
                 <TableHead className="text-right">Insights</TableHead>
               </TableRow>
-              </TableRow>
-            </TableHeader>
             </TableHeader>
             <TableBody>
-            <TableBody>
-              {paginatedDealers.map((dealer) => {
               {paginatedDealers.map((dealer) => {
                 const topStatus = Object.entries(dealer.ticketsByStatus).sort(
-                const topStatus = Object.entries(dealer.ticketsByStatus).sort(
                   ([, a], [, b]) => b - a
-                  ([, a], [, b]) => b - a
-                )[0];
                 )[0];
                 const topType = Object.entries(dealer.ticketsByType).sort(
-                const topType = Object.entries(dealer.ticketsByType).sort(
-                  ([, a], [, b]) => b - a
                   ([, a], [, b]) => b - a
                 )[0];
-                )[0];
-
 
                 return (
-                return (
-                  <TableRow key={dealer.dealerId}>
                   <TableRow
                     key={dealer.dealerId}
                     className="cursor-pointer transition hover:bg-muted/40"
                     onClick={() => setSelectedDealer(dealer)}
                   >
                     <TableCell className="font-medium">{dealer.dealerName}</TableCell>
-                    <TableCell className="font-medium">{dealer.dealerName}</TableCell>
-                    <TableCell className="text-muted-foreground">{dealer.dealerId}</TableCell>
                     <TableCell className="text-muted-foreground">{dealer.dealerId}</TableCell>
                     <TableCell className="text-right">{dealer.totalTickets}</TableCell>
-                    <TableCell className="text-right">{dealer.totalTickets}</TableCell>
-                    <TableCell className="text-right">{dealer.chassisNumbers.length}</TableCell>
                     <TableCell className="text-right">{dealer.chassisNumbers.length}</TableCell>
                     <TableCell className="text-right">
-                    <TableCell className="text-right">
-                      {formatTimeBreakdown(dealer.avgTimeConsumed)}
                       {formatTimeBreakdown(dealer.avgTimeConsumed)}
                     </TableCell>
-                    </TableCell>
-                    <TableCell>
                     <TableCell>
                       {topStatus ? `${topStatus[0]} (${topStatus[1]})` : "N/A"}
-                      {topStatus ? `${topStatus[0]} (${topStatus[1]})` : "N/A"}
                     </TableCell>
-                    </TableCell>
-                    <TableCell>{topType ? `${topType[0]} (${topType[1]})` : "N/A"}</TableCell>
                     <TableCell>{topType ? `${topType[0]} (${topType[1]})` : "N/A"}</TableCell>
                     <TableCell className="text-right">
                       <Button
@@ -556,32 +353,18 @@ export default function DealershipsPage() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                  </TableRow>
-                );
                 );
               })}
-              })}
-            </TableBody>
             </TableBody>
           </Table>
-          </Table>
-        </CardContent>
         </CardContent>
       </Card>
-      </Card>
-
 
       <PaginationControls
-      <PaginationControls
-        totalItems={dealers.length}
         totalItems={filteredDealers.length}
         pageSize={PAGE_SIZE}
-        pageSize={PAGE_SIZE}
-        page={page}
         page={page}
         onPageChange={setPage}
-        onPageChange={setPage}
-      />
       />
 
       <Drawer
@@ -603,7 +386,7 @@ export default function DealershipsPage() {
                   </span>
                 </DrawerTitle>
                 <p className="text-muted-foreground">
-                  专业版视图：金额区间、底盘号重复度、状态分布与建单趋势
+                  Pro view: amount ranges, chassis repeat frequency, status mix, and CreatedOn trend
                 </p>
               </div>
               <DrawerClose asChild>
@@ -615,19 +398,19 @@ export default function DealershipsPage() {
                 <StatCard
                   title="Tickets"
                   value={selectedDealer.totalTickets}
-                  description="关联单据总量"
+                  description="Total related tickets"
                   icon={FileText}
                 />
                 <StatCard
                   title="Unique Chassis"
                   value={selectedDealer.chassisNumbers.length}
-                  description="涉及唯一底盘号"
+                  description="Distinct chassis numbers"
                   icon={TrendingUp}
                 />
                 <StatCard
                   title="Avg Time"
                   value={formatTimeBreakdown(selectedDealer.avgTimeConsumed)}
-                  description="平均处理时长"
+                  description="Average handling time"
                   icon={Clock}
                 />
               </div>
@@ -637,7 +420,7 @@ export default function DealershipsPage() {
           <div className="grid gap-6 p-6 md:grid-cols-2">
             <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Amount Including Tax 分布</CardTitle>
+                <CardTitle>Amount Including Tax Distribution</CardTitle>
               </CardHeader>
               <CardContent className="h-[320px]">
                 {amountDistribution.some((b) => b.count > 0) ? (
@@ -651,14 +434,14 @@ export default function DealershipsPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-muted-foreground text-center mt-10">暂无金额数据</p>
+                  <p className="text-muted-foreground text-center mt-10">No amount data</p>
                 )}
               </CardContent>
             </Card>
 
             <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Chassis Number 重复度</CardTitle>
+                <CardTitle>Chassis Number Repeat Range</CardTitle>
               </CardHeader>
               <CardContent className="h-[320px]">
                 {chassisDuplicateDistribution.some((b) => b.count > 0) ? (
@@ -672,14 +455,14 @@ export default function DealershipsPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-muted-foreground text-center mt-10">暂无底盘号重复数据</p>
+                  <p className="text-muted-foreground text-center mt-10">No chassis repeat data</p>
                 )}
               </CardContent>
             </Card>
 
             <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Status 数量分布</CardTitle>
+                <CardTitle>Status Volume</CardTitle>
               </CardHeader>
               <CardContent className="h-[320px]">
                 {statusCounts.length > 0 ? (
@@ -693,14 +476,14 @@ export default function DealershipsPage() {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-muted-foreground text-center mt-10">暂无状态数据</p>
+                  <p className="text-muted-foreground text-center mt-10">No status data</p>
                 )}
               </CardContent>
             </Card>
 
             <Card className="md:col-span-2 shadow-sm">
               <CardHeader>
-                <CardTitle>Ticket CreatedOn 趋势</CardTitle>
+                <CardTitle>Ticket CreatedOn Trend</CardTitle>
               </CardHeader>
               <CardContent className="h-[360px]">
                 {ticketTrend.length > 0 ? (
@@ -723,7 +506,7 @@ export default function DealershipsPage() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-muted-foreground text-center mt-10">暂无趋势数据</p>
+                  <p className="text-muted-foreground text-center mt-10">No trend data</p>
                 )}
               </CardContent>
             </Card>
@@ -731,8 +514,5 @@ export default function DealershipsPage() {
         </DrawerContent>
       </Drawer>
     </div>
-    </div>
   );
-  );
-}
 }
