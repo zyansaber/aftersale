@@ -107,6 +107,39 @@ export async function updateTicketStatusMappingEntry(
   await set(targetRef, entry);
 }
 
+export function filterTicketsByFirstLevelStatus(
+  data: TicketData,
+  mapping?: TicketStatusMapping,
+  options?: { excludedFirstLevelStatuses?: string[] }
+): TicketData {
+  const excluded = (options?.excludedFirstLevelStatuses ?? []).map((status) => status.toLowerCase());
+
+  if (!mapping || excluded.length === 0) {
+    return data;
+  }
+
+  const filteredTickets = Object.entries(data.c4cTickets_test.tickets).reduce(
+    (acc, [ticketId, ticketEntry]) => {
+      const statusText = ticketEntry.ticket.TicketStatusText;
+      const firstLevelStatus =
+        mapping[statusText]?.firstLevelStatus ?? mapping[statusText]?.ticketStatusText ?? statusText;
+
+      if (!excluded.includes(firstLevelStatus.toLowerCase())) {
+        acc[ticketId] = ticketEntry;
+      }
+
+      return acc;
+    },
+    {} as TicketData["c4cTickets_test"]["tickets"]
+  );
+
+  return {
+    c4cTickets_test: {
+      tickets: filteredTickets,
+    },
+  };
+}
+
 export function filterTicketsByDisplaySettings(
   data: TicketData,
   settings?: DisplaySettings,
