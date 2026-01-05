@@ -10,6 +10,7 @@ import {
   Ticket,
   MapPin,
   BarChart2,
+  TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
@@ -22,13 +23,14 @@ export default function Sidebar({ activeTab }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const tabs = [
-    { id: "admin", label: "Admin", icon: Shield, to: "/admin" },
     { id: "tickets", label: "Tickets", icon: Ticket, to: "/tickets" },
-    { id: "mapping", label: "Mapping", icon: MapPin, to: "/mapping" },
     { id: "dealerships", label: "Dealerships", icon: Building2, to: "/dealerships" },
-    { id: "aged-claim-report", label: "Aged Claim Report", icon: BarChart2, to: "/aged-claim-report" },
     { id: "employees", label: "Internal Employees", icon: Users, to: "/employees" },
     { id: "repairs", label: "Repairs", icon: Wrench, to: "/repairs" },
+    { id: "claim-vs-closed", label: "Claim vs Closed", icon: TrendingUp, to: "/claim-vs-closed" },
+    { id: "aged-claim-report", label: "Aged Claim Report", icon: BarChart2, to: "/aged-claim-report" },
+    { id: "mapping", label: "Mapping", icon: MapPin, to: "/mapping" },
+    { id: "admin", label: "Admin", icon: Shield, to: "/admin" },
   ];
 
   return (
