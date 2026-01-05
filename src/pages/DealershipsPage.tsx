@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DealerStats, TicketData } from "@/types/ticket";
 import { analyzeDealers } from "@/utils/dataParser";
 import StatCard from "@/components/StatCard";
-import { ArrowUpRight, Building2, Clock, FileText, Loader2, TrendingUp } from "lucide-react";
+import { ArrowUpRight, Building2, Clock, FileText, TrendingUp } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -18,13 +18,13 @@ import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import { PaginationControls } from "@/components/PaginationControls";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { PageLoader } from "@/components/PageLoader";
 
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
 const PAGE_SIZE = 50;
 
 export default function DealershipsPage() {
-  const { data, isLoading, error } = useVisibleTickets();
+  const { data, isLoading, error, settings } = useVisibleTickets();
   const [hideBlankDealers, setHideBlankDealers] = useState(true);
   const [page, setPage] = useState(1);
 
@@ -93,42 +93,14 @@ export default function DealershipsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center p-8">
-        <Card className="w-full max-w-2xl shadow-sm">
-          <CardHeader className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <p className="font-medium">Loading dealership insights…</p>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Optimizing charts and metrics for large datasets. This may take a moment.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Progress value={65} />
-            <div className="grid gap-2 sm:grid-cols-3">
-              <div className="rounded-md border bg-muted/40 p-3">
-                <div className="text-xs text-muted-foreground">Preparing ticket stats</div>
-                <div className="mt-1 h-2 rounded-full bg-primary/20">
-                  <div className="h-2 w-5/6 rounded-full bg-primary" />
-                </div>
-              </div>
-              <div className="rounded-md border bg-muted/40 p-3">
-                <div className="text-xs text-muted-foreground">Aggregating dealers</div>
-                <div className="mt-1 h-2 rounded-full bg-primary/20">
-                  <div className="h-2 w-3/4 rounded-full bg-primary" />
-                </div>
-              </div>
-              <div className="rounded-md border bg-muted/40 p-3">
-                <div className="text-xs text-muted-foreground">Building charts</div>
-                <div className="mt-1 h-2 rounded-full bg-primary/20">
-                  <div className="h-2 w-2/3 rounded-full bg-primary" />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <PageLoader
+        title="Loading dealership analytics"
+        description="Syncing datasets and precomputing aggregations and charts."
+        tasks={[
+          { label: "Ticket dataset", progress: data ? 100 : 0 },
+          { label: "Visibility filters", progress: settings ? 100 : 0 },
+        ]}
+      />
     );
   }
 
