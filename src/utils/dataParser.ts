@@ -120,9 +120,16 @@ export function filterTicketsByFirstLevelStatus(
 
   const filteredTickets = Object.entries(data.c4cTickets_test.tickets).reduce(
     (acc, [ticketId, ticketEntry]) => {
+      const statusCode = ticketEntry.ticket.TicketStatus;
       const statusText = ticketEntry.ticket.TicketStatusText;
+
+      const mappingEntry =
+        mapping[statusCode] ??
+        // fallback in case mappings were stored by text instead of code
+        mapping[statusText];
+
       const firstLevelStatus =
-        mapping[statusText]?.firstLevelStatus ?? mapping[statusText]?.ticketStatusText ?? statusText;
+        mappingEntry?.firstLevelStatus ?? mappingEntry?.ticketStatusText ?? statusText;
 
       if (!excluded.includes(firstLevelStatus.toLowerCase())) {
         acc[ticketId] = ticketEntry;
