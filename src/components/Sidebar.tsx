@@ -11,22 +11,22 @@ import {
   MapPin,
 } from "lucide-react";
 import { useState } from "react";
+import { NavLink } from "react-router-dom";
 
 interface SidebarProps {
   activeTab: string;
-  onTabChange: (tab: string) => void;
 }
 
-export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+export default function Sidebar({ activeTab }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   const tabs = [
-    { id: "admin", label: "Admin", icon: Shield },
-    { id: "tickets", label: "Tickets", icon: Ticket },
-    { id: "mapping", label: "Mapping", icon: MapPin },
-    { id: "dealerships", label: "Dealerships", icon: Building2 },
-    { id: "employees", label: "Internal Employees", icon: Users },
-    { id: "repairs", label: "Repairs", icon: Wrench },
+    { id: "admin", label: "Admin", icon: Shield, to: "/admin" },
+    { id: "tickets", label: "Tickets", icon: Ticket, to: "/tickets" },
+    { id: "mapping", label: "Mapping", icon: MapPin, to: "/mapping" },
+    { id: "dealerships", label: "Dealerships", icon: Building2, to: "/dealerships" },
+    { id: "employees", label: "Internal Employees", icon: Users, to: "/employees" },
+    { id: "repairs", label: "Repairs", icon: Wrench, to: "/repairs" },
   ];
 
   return (
@@ -52,19 +52,19 @@ export default function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
-            <Button
-              key={tab.id}
-              variant={activeTab === tab.id ? "secondary" : "ghost"}
-              className={cn(
-                "w-full justify-start text-white hover:bg-slate-800",
-                activeTab === tab.id && "bg-slate-800",
-                collapsed && "justify-center"
-              )}
-              onClick={() => onTabChange(tab.id)}
-            >
-              <Icon className={cn("h-5 w-5", !collapsed && "mr-2")} />
-              {!collapsed && <span>{tab.label}</span>}
-            </Button>
+            <NavLink key={tab.id} to={tab.to} className="block">
+              <Button
+                variant={activeTab === tab.id ? "secondary" : "ghost"}
+                className={cn(
+                  "w-full justify-start text-white hover:bg-slate-800",
+                  activeTab === tab.id && "bg-slate-800",
+                  collapsed && "justify-center"
+                )}
+              >
+                <Icon className={cn("h-5 w-5", !collapsed && "mr-2")} />
+                {!collapsed && <span>{tab.label}</span>}
+              </Button>
+            </NavLink>
           );
         })}
       </nav>
