@@ -13,34 +13,12 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatTimeBreakdown } from "@/utils/timeParser";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import { PaginationControls } from "@/components/PaginationControls";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-} from "@/components/ui/dialog";
 
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
 const PAGE_SIZE = 50;
@@ -49,7 +27,6 @@ export default function DealershipsPage() {
   const { data, isLoading, error } = useVisibleTickets();
   const [hideBlankDealers, setHideBlankDealers] = useState(true);
   const [page, setPage] = useState(1);
-  const [selectedDealer, setSelectedDealer] = useState<DealerStats | null>(null);
 
   const dealers = useMemo<DealerStats[]>(() => {
     if (!data) return [];
@@ -104,76 +81,6 @@ export default function DealershipsPage() {
   const totalTickets = filteredDealers.reduce((sum, d) => sum + d.totalTickets, 0);
   const totalDealers = filteredDealers.length;
   const avgTicketsPerDealer = totalDealers > 0 ? (totalTickets / totalDealers).toFixed(1) : 0;
-
-  const selectedTickets = useMemo(() => {
-    if (!selectedDealer) return [];
-    return dealerTicketMap[selectedDealer.dealerId] ?? [];
-  }, [dealerTicketMap, selectedDealer]);
-
-  const amountDistribution = useMemo(() => {
-    const buckets = [
-      { label: "0 - 500", min: 0, max: 500, count: 0 },
-      { label: "500 - 2k", min: 500, max: 2000, count: 0 },
-      { label: "2k - 5k", min: 2000, max: 5000, count: 0 },
-      { label: "5k+", min: 5000, max: Infinity, count: 0 },
-    ];
-
-    selectedTickets.forEach((ticketEntry) => {
-      const amount = parseFloat(ticketEntry.ticket.AmountIncludingTax) || 0;
-      const bucket = buckets.find((b) => amount >= b.min && amount < b.max);
-      if (bucket) bucket.count += 1;
-    });
-
-    return buckets;
-  }, [selectedTickets]);
-
-  const chassisDuplicateDistribution = useMemo(() => {
-    const counts: Record<string, number> = {};
-    selectedTickets.forEach((ticketEntry) => {
-      const chassis = (ticketEntry.ticket.ChassisNumber || "").trim();
-      if (!chassis) return;
-      counts[chassis] = (counts[chassis] || 0) + 1;
-    });
-
-    const distribution = [
-      { label: "Unique", min: 1, max: 2, count: 0 },
-      { label: "2 - 3 repeats", min: 2, max: 4, count: 0 },
-      { label: "4+ repeats", min: 4, max: Infinity, count: 0 },
-    ];
-
-    Object.values(counts).forEach((repeatCount) => {
-      const bucket = distribution.find((b) => repeatCount >= b.min && repeatCount < b.max);
-      if (bucket) bucket.count += 1;
-    });
-
-    return distribution;
-  }, [selectedTickets]);
-
-  const statusCounts = useMemo(() => {
-    const summary: Record<string, number> = {};
-    selectedTickets.forEach((ticketEntry) => {
-      const status = ticketEntry.ticket.TicketStatusText || "Unknown";
-      summary[status] = (summary[status] || 0) + 1;
-    });
-    return Object.entries(summary)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [selectedTickets]);
-
-  const ticketTrend = useMemo(() => {
-    const timeline: Record<string, number> = {};
-    selectedTickets.forEach((ticketEntry) => {
-      const createdOn = ticketEntry.ticket.CreatedOn;
-      const date = new Date(createdOn);
-      if (Number.isNaN(date.getTime())) return;
-      const label = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      timeline[label] = (timeline[label] || 0) + 1;
-    });
-
-    return Object.entries(timeline)
-      .sort(([a], [b]) => (a > b ? 1 : -1))
-      .map(([month, value]) => ({ month, value }));
-  }, [selectedTickets]);
 
   if (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -364,7 +271,9 @@ export default function DealershipsPage() {
                   <TableRow
                     key={dealer.dealerId}
                     className="cursor-pointer transition hover:bg-muted/40"
-                    onClick={() => setSelectedDealer(dealer)}
+                    onClick={() =>
+                      window.open(`/dealer-insights/${encodeURIComponent(dealer.dealerId)}`, "_blank", "noopener,noreferrer")
+                    }
                   >
                     <TableCell className="font-medium">{dealer.dealerName}</TableCell>
                     <TableCell className="text-muted-foreground">{dealer.dealerId}</TableCell>
@@ -384,7 +293,11 @@ export default function DealershipsPage() {
                         className="text-primary"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedDealer(dealer);
+                          window.open(
+                            `/dealer-insights/${encodeURIComponent(dealer.dealerId)}`,
+                            "_blank",
+                            "noopener,noreferrer"
+                          );
                         }}
                       >
                         Advanced view
@@ -406,155 +319,6 @@ export default function DealershipsPage() {
         onPageChange={setPage}
       />
 
-      <Dialog
-        open={!!selectedDealer}
-        onOpenChange={(open) => {
-          if (!open) setSelectedDealer(null);
-        }}
-      >
-        <DialogContent className="max-w-6xl md:max-w-7xl overflow-hidden border-0 bg-transparent p-0 shadow-none">
-          <div className="mx-auto flex h-[88vh] w-[95vw] max-w-7xl flex-col overflow-hidden rounded-2xl border bg-white shadow-2xl">
-            <DialogHeader className="border-b px-8 py-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm uppercase text-muted-foreground">Dealer Insight Window</p>
-                  <DialogTitle className="text-2xl">
-                    {selectedDealer?.dealerName || "Dealer"}{" "}
-                    <span className="text-muted-foreground font-normal">
-                      #{selectedDealer?.dealerId}
-                    </span>
-                  </DialogTitle>
-                  <DialogDescription>
-                    Focused analytics without the sidebar: amount ranges, chassis frequency, status mix, and CreatedOn trend.
-                  </DialogDescription>
-                </div>
-                <DialogClose asChild>
-                  <Button variant="outline">Close</Button>
-                </DialogClose>
-              </div>
-              {selectedDealer && (
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                  <StatCard
-                    title="Tickets"
-                    value={selectedDealer.totalTickets}
-                    description="Total related tickets"
-                    icon={FileText}
-                  />
-                  <StatCard
-                    title="Unique Chassis"
-                    value={selectedDealer.chassisNumbers.length}
-                    description="Distinct chassis numbers"
-                    icon={TrendingUp}
-                  />
-                  <StatCard
-                    title="Avg Time"
-                    value={formatTimeBreakdown(selectedDealer.avgTimeConsumed)}
-                    description="Average handling time"
-                    icon={Clock}
-                  />
-                </div>
-              )}
-            </DialogHeader>
-
-            <div className="flex-1 overflow-y-auto px-8 pb-8 pt-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card className="shadow-sm">
-                  <CardHeader>
-                    <CardTitle>Amount Including Tax Distribution</CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-[320px]">
-                    {amountDistribution.some((b) => b.count > 0) ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={amountDistribution}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="label" />
-                          <YAxis />
-                          <Tooltip />
-                          <Bar dataKey="count" fill="#3B82F6" name="Tickets" radius={[6, 6, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <p className="text-muted-foreground text-center mt-10">No amount data</p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-sm">
-                  <CardHeader>
-                    <CardTitle>Chassis Number Repeat Range</CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-[320px]">
-                    {chassisDuplicateDistribution.some((b) => b.count > 0) ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chassisDuplicateDistribution}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="label" />
-                          <YAxis />
-                          <Tooltip />
-                          <Bar dataKey="count" fill="#10B981" name="Chassis IDs" radius={[6, 6, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <p className="text-muted-foreground text-center mt-10">No chassis repeat data</p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="shadow-sm">
-                  <CardHeader>
-                    <CardTitle>Status Volume</CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-[320px]">
-                    {statusCounts.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={statusCounts}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="name" interval={0} angle={-25} textAnchor="end" height={80} />
-                          <YAxis />
-                          <Tooltip />
-                          <Bar dataKey="value" fill="#F59E0B" name="Tickets" radius={[6, 6, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <p className="text-muted-foreground text-center mt-10">No status data</p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="md:col-span-2 shadow-sm">
-                  <CardHeader>
-                    <CardTitle>Ticket CreatedOn Trend</CardTitle>
-                  </CardHeader>
-                  <CardContent className="h-[360px]">
-                    {ticketTrend.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={ticketTrend}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="month" />
-                          <YAxis allowDecimals={false} />
-                          <Tooltip />
-                          <Legend />
-                          <Line
-                            type="monotone"
-                            dataKey="value"
-                            name="Ticket Count"
-                            stroke="#8B5CF6"
-                            strokeWidth={3}
-                            dot={{ r: 4 }}
-                            activeDot={{ r: 6 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <p className="text-muted-foreground text-center mt-10">No trend data</p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
