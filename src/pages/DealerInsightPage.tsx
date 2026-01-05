@@ -20,15 +20,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatTimeBreakdown } from "@/utils/timeParser";
-import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
+import { PageLoader } from "@/components/PageLoader";
 
 type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
 
 export default function DealerInsightPage() {
   const { dealerId } = useParams<{ dealerId: string }>();
   const navigate = useNavigate();
-  const { data, isLoading, error } = useVisibleTickets();
+  const { data, isLoading, error, settings } = useVisibleTickets();
 
   const dealers = useMemo<DealerStats[]>(() => {
     if (!data) return [];
@@ -125,23 +125,23 @@ export default function DealerInsightPage() {
     return <div className="p-8 text-destructive">Failed to load dealership data: {message}</div>;
   }
 
-  if (isLoading || !selectedDealer) {
+  if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center p-8">
-        <Card className="w-full max-w-2xl shadow-sm">
-          <CardHeader className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <ArrowLeft className="h-5 w-5" />
-              <p className="font-medium">Loading dealer insights…</p>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Rendering analytics for the selected dealer. This may take a moment.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Progress value={65} />
-          </CardContent>
-        </Card>
+      <PageLoader
+        title="Loading dealer insights"
+        description="Syncing data and filtering to the selected dealer before rendering charts to avoid stutter."
+        tasks={[
+          { label: "Ticket dataset", progress: data ? 100 : 0 },
+          { label: "Visibility filters", progress: settings ? 100 : 0 },
+        ]}
+      />
+    );
+  }
+
+  if (!selectedDealer) {
+    return (
+      <div className="p-8 text-destructive">
+        Dealer not found. Please pick again from the dealership list.
       </div>
     );
   }
