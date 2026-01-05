@@ -294,8 +294,9 @@ export function analyzeEmployees(data: TicketData): EmployeeStats[] {
       employeeMap.set(employeeId, {
         employeeId,
         employeeName,
+        totalTickets: 0,
         activeTickets: 0,
-        completedTickets: 0,
+        closedTickets: 0,
         ticketsByStatus: {},
         totalTimeConsumed: { days: 0, hours: 0, minutes: 0, totalMinutes: 0 },
         avgTimePerTicket: { days: 0, hours: 0, minutes: 0, totalMinutes: 0 },
@@ -304,12 +305,12 @@ export function analyzeEmployees(data: TicketData): EmployeeStats[] {
 
     const stats = employeeMap.get(employeeId)!;
     const ticket = ticketEntry.ticket;
+    const isClosed =
+      ticket.TicketStatusText.toLowerCase().includes("closed") || ticket.TicketStatus === "Z9";
 
-    if (ticket.TicketStatus === "Z9" || ticket.TicketStatusText.includes("Approved")) {
-      stats.completedTickets++;
-    } else {
-      stats.activeTickets++;
-    }
+    stats.totalTickets++;
+    stats.activeTickets += isClosed ? 0 : 1;
+    stats.closedTickets += isClosed ? 1 : 0;
 
     stats.ticketsByStatus[ticket.TicketStatusText] =
       (stats.ticketsByStatus[ticket.TicketStatusText] || 0) + 1;
@@ -339,7 +340,7 @@ export function analyzeEmployees(data: TicketData): EmployeeStats[] {
   });
 
   return Array.from(employeeMap.values()).sort(
-    (a, b) => b.activeTickets + b.completedTickets - (a.activeTickets + a.completedTickets)
+    (a, b) => b.totalTickets - a.totalTickets
   );
 }
 
