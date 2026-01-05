@@ -1,153 +1,63 @@
-import { useEffect, useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { useTicketData } from "@/hooks/useTicketData";
-import { useTicketStatusMapping } from "@/hooks/useTicketStatusMapping";
-import { TicketStatusMapping } from "@/types/ticket";
-import { toast } from "@/components/ui/sonner";
+  loadTicketStatusMapping,
+  updateTicketStatusMappingEntry,
+} from "@/utils/dataParser";
+import { TicketStatusMapping, TicketStatusMappingEntry } from "@/types/ticket";
 
-type StatusRow = {
-  code: string;
-  text: string;
+export const TICKET_STATUS_MAPPING_KEY = ["ticketStatusMapping"];
+
+type UpdatePayload = {
+  ticketStatus: string;
+  entry: TicketStatusMappingEntry;
 };
 
-export default function MappingPage() {
-  const ticketQuery = useTicketData();
-  const mappingQuery = useTicketStatusMapping();
+export function useTicketStatusMapping() {
+  const queryClient = useQueryClient();
 
-  const [localMapping, setLocalMapping] = useState<Record<string, string>>({});
+  const mappingQuery = useQuery<TicketStatusMapping>({
+    queryKey: TICKET_STATUS_MAPPING_KEY,
+    queryFn: loadTicketStatusMapping,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
 
-  const statusRows: StatusRow[] = useMemo(() => {
-    if (!ticketQuery.data) return [];
+  const mutation = useMutation({
+    mutationFn: ({ ticketStatus, entry }: UpdatePayload) =>
+      updateTicketStatusMappingEntry(ticketStatus, entry),
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: TICKET_STATUS_MAPPING_KEY });
 
-    const seen = new Map<string, string>();
-    Object.values(ticketQuery.data.c4cTickets_test.tickets).forEach((entry) => {
-      if (!seen.has(entry.ticket.TicketStatus)) {
-        seen.set(entry.ticket.TicketStatus, entry.ticket.TicketStatusText);
+      const previousMapping = queryClient.getQueryData<TicketStatusMapping>(TICKET_STATUS_MAPPING_KEY);
+
+      queryClient.setQueryData<TicketStatusMapping | undefined>(TICKET_STATUS_MAPPING_KEY, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          [payload.ticketStatus]: payload.entry,
+        };
+      });
+
+      return { previousMapping };
+    },
+    onError: (_error, _payload, context) => {
+      if (context?.previousMapping) {
+        queryClient.setQueryData(TICKET_STATUS_MAPPING_KEY, context.previousMapping);
       }
-    });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: TICKET_STATUS_MAPPING_KEY });
+    },
+  });
 
-    return Array.from(seen.entries())
-      .map(([code, text]) => ({ code, text }))
-      .sort((a, b) => a.code.localeCompare(b.code));
-  }, [ticketQuery.data]);
-
-  const buildLocalMapping = (mapping: TicketStatusMapping) =>
-    Object.fromEntries(
-      Object.entries(mapping).map(([code, entry]) => [code, entry.firstLevelStatus ?? ""])
-    );
-
-  useEffect(() => {
-    if (!mappingQuery.data) return;
-    setLocalMapping(buildLocalMapping(mappingQuery.data));
-  }, [mappingQuery.data]);
-
-  const handleChange = (code: string, value: string) => {
-    setLocalMapping((prev) => ({
-      ...prev,
-      [code]: value,
-    }));
+  const updateEntry = (ticketStatus: string, entry: TicketStatusMappingEntry) => {
+    mutation.mutate({ ticketStatus, entry });
   };
 
-  const handleSave = (row: StatusRow) => {
-    const firstLevelStatus = (localMapping[row.code] ?? "").trim();
-    mappingQuery.updateEntry(row.code, {
-      ticketStatusText: row.text,
-      firstLevelStatus,
-    });
-
-    toast.success("Mapping 已提交到 Firebase", {
-      description: `${row.code} → ${firstLevelStatus || "（空）"}`,
-    });
+  return {
+    ...mappingQuery,
+    updateEntry,
+    isUpdating: mutation.isPending,
   };
-
-  if (ticketQuery.isLoading || mappingQuery.isLoading) {
-    return <div className="p-8">Loading ticket status mapping...</div>;
-  }
-
-  if (ticketQuery.error || mappingQuery.error) {
-    const ticketError =
-      ticketQuery.error instanceof Error ? ticketQuery.error.message : "Ticket data error";
-    const mappingError =
-      mappingQuery.error instanceof Error ? mappingQuery.error.message : "Mapping error";
-
-    return (
-      <div className="p-8 text-destructive">
-        Failed to load data:
-        <ul className="list-disc list-inside mt-2 space-y-1">
-          <li>{ticketError}</li>
-          <li>{mappingError}</li>
-        </ul>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold">Ticket Status Mapping</h2>
-        <p className="text-muted-foreground mt-2">
-          列出所有 TicketStatus 与 TicketStatusText，并可以填写 First Level Status，同步到 Firebase。
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Mapping 列表</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[140px]">TicketStatus</TableHead>
-                <TableHead>TicketStatusText</TableHead>
-                <TableHead className="w-[220px]">First Level Status</TableHead>
-                <TableHead className="w-[120px]">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {statusRows.map((row) => (
-                <TableRow key={row.code}>
-                  <TableCell className="font-mono font-medium">{row.code}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.text}</TableCell>
-                  <TableCell>
-                    <Input
-                      value={localMapping[row.code] ?? ""}
-                      onChange={(event) => handleChange(row.code, event.target.value)}
-                      placeholder="输入 First Level Status"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      onClick={() => handleSave(row)}
-                      disabled={mappingQuery.isUpdating || mappingQuery.isLoading}
-                    >
-                      保存
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {statusRows.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    无 TicketStatus 数据。
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  );
 }
