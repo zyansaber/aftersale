@@ -18,7 +18,6 @@ import { parseTimeConsumed } from "@/utils/timeParser";
 import { endOfMonth, format, parse as parseDate, startOfMonth, addMonths } from "date-fns";
 import StatCard from "@/components/StatCard";
 import { TicketData } from "@/types/ticket";
-import { PageLoader } from "@/components/PageLoader";
 
 type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
 
@@ -62,7 +61,7 @@ function buildMonthSkeleton() {
 }
 
 export default function ClaimVsClosedPage() {
-  const { data, isLoading, error, settings } = useVisibleTickets({
+  const { data, isLoading, error } = useVisibleTickets({
     applyEmployeeVisibility: false,
     applyRepairVisibility: false,
   });
@@ -150,27 +149,31 @@ export default function ClaimVsClosedPage() {
       };
     }, [data, months]);
 
-  if (isLoading || mappingQuery.isLoading) {
+  if (isLoading) {
     return (
-      <PageLoader
-        title="Loading Claim vs Closed dashboard"
-        description="Syncing ticket data, visibility filters, and status mapping before building trends to keep entry smooth."
-        tasks={[
-          { label: "Ticket dataset", progress: data ? 100 : 0 },
-          { label: "Visibility filters", progress: settings ? 100 : 0 },
-          { label: "Status mapping", progress: mappingQuery.data ? 100 : 0 },
-        ]}
-      />
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-3xl font-bold">Claim vs Closed</h2>
+          <p className="text-muted-foreground mt-2">
+            Visualizing creation versus completion volumes and time consumed, starting from Jan 2025.
+          </p>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Loading claim insights…</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="h-2 w-full rounded-full bg-slate-200 animate-pulse" />
+            <div className="h-2 w-3/4 rounded-full bg-slate-200 animate-pulse" />
+            <div className="h-2 w-1/2 rounded-full bg-slate-200 animate-pulse" />
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
-  if (error || mappingQuery.error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : mappingQuery.error instanceof Error
-        ? mappingQuery.error.message
-        : "Unknown error";
+  if (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     return (
       <div className="p-6 text-destructive flex items-center gap-2">
         <AlertCircle className="h-5 w-5" />
