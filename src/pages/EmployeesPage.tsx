@@ -316,39 +316,76 @@ export default function EmployeesPage() {
 
       {selectedEmployee && (
         <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>{selectedEmployee.employeeName} — Ticket Status Mix</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Status counts for the selected employee
-              </p>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={360}>
-                <BarChart data={selectedEmployeeStatusData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" angle={-30} textAnchor="end" height={90} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar
-                    dataKey="value"
-                    fill="#3B82F6"
-                    name="Tickets"
-                    className="cursor-pointer"
-                    onClick={(data) => {
-                      const statusName = (data?.name as string) ?? "";
-                      setStatusDialog({
-                        status: statusName,
-                        tickets: statusTicketMap[statusName] ?? [],
-                      });
-                    }}
-                  >
-                    <LabelList dataKey="value" position="top" />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>{selectedEmployee.employeeName} — Ticket Status Mix</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Status counts for the selected employee
+                </p>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={360}>
+                  <BarChart data={selectedEmployeeStatusData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-30} textAnchor="end" height={90} />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar
+                      dataKey="value"
+                      fill="#3B82F6"
+                      name="Tickets"
+                      className="cursor-pointer"
+                      onClick={(data) => {
+                        const statusName = (data?.name as string) ?? "";
+                        setStatusDialog({
+                          status: statusName,
+                          tickets: statusTicketMap[statusName] ?? [],
+                        });
+                      }}
+                    >
+                      <LabelList dataKey="value" position="top" />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{selectedEmployee.employeeName} — Ticket Age Ranges</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Days since CreatedOn for tickets in view (scoped filters applied).
+                </p>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={360}>
+                  <BarChart data={ageRangeData.chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="range" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar
+                      dataKey="count"
+                      name="Tickets"
+                      fill="#10b981"
+                      className="cursor-pointer"
+                      onClick={(data) => {
+                        const rangeLabel = (data?.range as string) ?? "";
+                        setAgeDialog({
+                          range: rangeLabel,
+                          tickets: ageRangeData.ticketsByRange[rangeLabel] ?? [],
+                        });
+                      }}
+                    >
+                      <LabelList dataKey="count" position="top" />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
 
           <Card>
             <CardHeader>
@@ -386,43 +423,6 @@ export default function EmployeesPage() {
             </CardContent>
           </Card>
         </div>
-      )}
-
-      {selectedEmployee && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{selectedEmployee.employeeName} — Ticket Age Ranges</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Days since CreatedOn for tickets in view (scoped filters applied).
-            </p>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={360}>
-              <BarChart data={ageRangeData.chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="range" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                <Bar
-                  dataKey="count"
-                  name="Tickets"
-                  fill="#10b981"
-                  className="cursor-pointer"
-                  onClick={(data) => {
-                    const rangeLabel = (data?.range as string) ?? "";
-                    setAgeDialog({
-                      range: rangeLabel,
-                      tickets: ageRangeData.ticketsByRange[rangeLabel] ?? [],
-                    });
-                  }}
-                >
-                  <LabelList dataKey="count" position="top" />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
       )}
 
       <Dialog open={!!statusDialog} onOpenChange={() => setStatusDialog(null)}>
