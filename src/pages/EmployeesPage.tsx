@@ -14,11 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTicketStatusMapping } from "@/hooks/useTicketStatusMapping";
 
 export default function EmployeesPage() {
-  const { data, isLoading, error } = useVisibleTickets({ applyEmployeeVisibility: true });
+  const { data, isLoading, error } = useVisibleTickets({ applyEmployeeVisibility: false });
   const mappingQuery = useTicketStatusMapping();
   const [hideClosed, setHideClosed] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const filteredTickets = useMemo(() => {
     if (!data) return undefined;
@@ -44,15 +45,26 @@ export default function EmployeesPage() {
     );
   }, [employees, searchTerm]);
 
-  const workloadData = useMemo(
-    () =>
-      employees.slice(0, 12).map((emp) => ({
+  const statusOptions = useMemo(() => {
+    const statuses = new Set<string>();
+    employees.forEach((emp) => {
+      Object.keys(emp.ticketsByStatus).forEach((status) => statuses.add(status));
+    });
+    return Array.from(statuses).sort();
+  }, [employees]);
+
+  const workloadData = useMemo(() => {
+    return employees.map((emp) => {
+      const value =
+        statusFilter === "all"
+          ? emp.activeTickets
+          : emp.ticketsByStatus[statusFilter] ?? 0;
+      return {
         name: emp.employeeName,
-        active: emp.activeTickets,
-        completed: emp.completedTickets,
-      })),
-    [employees]
-  );
+        value,
+      };
+    });
+  }, [employees, statusFilter]);
 
   const selectedEmployee = useMemo(
     () =>
@@ -90,7 +102,7 @@ export default function EmployeesPage() {
 
   const totalEmployees = employees.length;
   const totalActiveTickets = employees.reduce((sum, e) => sum + e.activeTickets, 0);
-  const totalCompletedTickets = employees.reduce((sum, e) => sum + e.completedTickets, 0);
+  const totalClosedTickets = employees.reduce((sum, e) => sum + e.closedTickets, 0);
   const avgActivePerEmployee =
     totalEmployees > 0 ? (totalActiveTickets / totalEmployees).toFixed(1) : 0;
 
@@ -114,13 +126,13 @@ export default function EmployeesPage() {
           title="Active Tickets"
           value={totalActiveTickets}
           icon={AlertCircle}
-          description="Currently in progress"
+          description="Not in Closed status"
         />
         <StatCard
-          title="Completed Tickets"
-          value={totalCompletedTickets}
+          title="Closed Tickets"
+          value={totalClosedTickets}
           icon={CheckCircle}
-          description="Successfully closed"
+          description="Marked as closed"
         />
         <StatCard
           title="Avg Active/Employee"
@@ -179,6 +191,22 @@ export default function EmployeesPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="status-select">Filter by status (text)</Label>
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>
+                <SelectTrigger id="status-select">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {statusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -188,7 +216,7 @@ export default function EmployeesPage() {
           <CardHeader>
             <CardTitle>Employee Workload Distribution</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Active and completed ticket counts for {employees.length} visible employees
+              Ticket counts by status for {employees.length} employees
             </p>
           </CardHeader>
           <CardContent>
@@ -199,11 +227,8 @@ export default function EmployeesPage() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="active" fill="#F59E0B" name="Active">
-                  <LabelList dataKey="active" position="top" />
-                </Bar>
-                <Bar dataKey="completed" fill="#10B981" name="Completed">
-                  <LabelList dataKey="completed" position="top" />
+                <Bar dataKey="value" fill="#2563EB" name={statusFilter === "all" ? "Active tickets" : statusFilter}>
+                  <LabelList dataKey="value" position="top" />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
