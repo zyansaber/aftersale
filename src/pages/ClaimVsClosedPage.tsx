@@ -70,9 +70,10 @@ type EmployeeCompletionCard = {
   averageHours: number;
 };
 
-const ROLLING_MONTHS = 3;
 const END_MONTH = endOfMonth(new Date());
-const START_MONTH = startOfMonth(addMonths(END_MONTH, -(ROLLING_MONTHS - 1)));
+const START_MONTH = startOfMonth(new Date(2025, 0, 1));
+const RECENT_WINDOW_MONTHS = 3;
+const RECENT_START_MONTH = startOfMonth(addMonths(END_MONTH, -(RECENT_WINDOW_MONTHS - 1)));
 
 function parseTicketDate(raw: string) {
   if (!raw) return new Date("");
@@ -173,15 +174,18 @@ export default function ClaimVsClosedPage() {
     } satisfies TicketData;
   }, [data, selectedEmployeeId]);
 
-  const { comparisonData, totalCreated, totalCompleted, averageHoursAcrossRange } = useMemo(() => {
-    if (!scopedData) {
-      return {
-        comparisonData: [] as ChartRow[],
-        totalCreated: 0,
-        totalCompleted: 0,
-        averageHoursAcrossRange: 0,
-      };
-    }
+  const { comparisonData, totalCreated, totalCompleted, averageHoursAcrossRange, recentCreated, recentCompleted } =
+    useMemo(() => {
+      if (!scopedData) {
+        return {
+          comparisonData: [] as ChartRow[],
+          totalCreated: 0,
+          totalCompleted: 0,
+          averageHoursAcrossRange: 0,
+          recentCreated: 0,
+          recentCompleted: 0,
+        };
+      }
 
     const buckets = new Map<string, MonthBucket>(
       months.map((month) => [month.key, { createdCount: 0, completedCount: 0, totalMinutes: 0 }])
@@ -232,6 +236,18 @@ export default function ClaimVsClosedPage() {
       };
     });
 
+    const { recentCreated, recentCompleted } = months.reduce(
+      (acc, month) => {
+        if (month.startDate >= RECENT_START_MONTH) {
+          const bucket = buckets.get(month.key)!;
+          acc.recentCreated += bucket.createdCount;
+          acc.recentCompleted += bucket.completedCount;
+        }
+        return acc;
+      },
+      { recentCreated: 0, recentCompleted: 0 }
+    );
+
     const averageHoursAcrossRange =
       totalCompleted > 0 ? Number((totalCompletionMinutes / totalCompleted / 60).toFixed(1)) : 0;
 
@@ -240,6 +256,8 @@ export default function ClaimVsClosedPage() {
       totalCreated,
       totalCompleted,
       averageHoursAcrossRange,
+      recentCreated,
+      recentCompleted,
     };
   }, [months, scopedData]);
 
@@ -347,8 +365,8 @@ export default function ClaimVsClosedPage() {
       <div>
         <h2 className="text-3xl font-bold">Claim vs Closed</h2>
         <p className="text-muted-foreground mt-2">
-          Compare ticket creation with completion months inferred from CreatedOn + Z1Z8 Time Consumed over a rolling
-          three-month window, and track average hours consumed. Filter by employee to focus all charts and cards.
+          Compare ticket creation with completion months inferred from CreatedOn + Z1Z8 Time Consumed from Jan 2025
+          through today, and track time consumed. Filter by employee to focus all charts and cards.
         </p>
       </div>
 
@@ -384,9 +402,9 @@ export default function ClaimVsClosedPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Created (Last 3 Months)"
+          title="Created (Since Jan 2025)"
           value={totalCreated}
-          description="Tickets created within the focused window"
+          description="Tickets created from 2025-01 to the current month"
           icon={Clock}
         />
         <StatCard
@@ -402,18 +420,18 @@ export default function ClaimVsClosedPage() {
           icon={TrendingUp}
         />
         <StatCard
-          title="Date Window"
-          value="Last 3 Months"
-          description="Rolling window to compare created vs completed"
+          title="Recent 3-Month Balance"
+          value={`${recentCompleted}/${recentCreated}`}
+          description="Completed vs created in the latest three months"
           icon={AlertCircle}
         />
       </div>
 
-      <Card className="shadow-sm">
+      <Card className="shadow-sm border border-border/60 bg-gradient-to-r from-sky-50 to-emerald-50">
         <CardHeader>
-          <CardTitle>Daily Averages by Month</CardTitle>
+          <CardTitle>Average Pace per Month</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Smooth comparison of created and completed tickets per day. Created disappears when focusing on a specific
+            Combined view of created and completed tickets per day. Created disappears when focusing on a specific
             employee. Latest completed pace: {latestCompletedDailyAvg} / day
             {showCreatedLine ? `; created: ${latestCreatedDailyAvg} / day.` : "."}
           </p>
@@ -456,12 +474,12 @@ export default function ClaimVsClosedPage() {
         </CardContent>
       </Card>
 
-      <Card className="shadow-sm">
+      <Card className="shadow-sm border border-border/60">
         <CardHeader>
           <CardTitle>Monthly Created, Completed &amp; Time</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Full-width view of created vs completed counts with average hours consumed layered on top for the rolling
-            three-month window.
+            Full-width view of created vs completed counts with average hours consumed layered on top from Jan 2025
+            through the current month.
           </p>
         </CardHeader>
         <CardContent className="h-[460px]">
