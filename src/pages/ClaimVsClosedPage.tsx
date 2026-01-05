@@ -14,7 +14,6 @@ import {
   YAxis,
 } from "recharts";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
-import { useTicketStatusMapping } from "@/hooks/useTicketStatusMapping";
 import { parseTimeConsumed } from "@/utils/timeParser";
 import { endOfMonth, format, parse as parseDate, startOfMonth, addMonths } from "date-fns";
 import StatCard from "@/components/StatCard";
@@ -24,14 +23,14 @@ type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
 
 type MonthBucket = {
   createdCount: number;
-  claimApprovedCount: number;
+  completedCount: number;
   totalMinutes: number;
 };
 
 type ChartRow = {
   month: string;
   created: number;
-  claimApproved: number;
+  completed: number;
 };
 
 type AverageRow = {
@@ -47,16 +46,6 @@ function parseTicketDate(raw: string) {
   const isoCandidate = new Date(raw);
   if (!Number.isNaN(isoCandidate.getTime())) return isoCandidate;
   return parseDate(raw, "dd/MM/yyyy", new Date());
-}
-
-function getFirstLevelStatus(ticket: TicketEntry, mapping?: ReturnType<typeof useTicketStatusMapping>["data"]) {
-  const code = ticket.ticket.TicketStatus;
-  const text = ticket.ticket.TicketStatusText;
-  const mapped =
-    mapping?.[code]?.firstLevelStatus ??
-    mapping?.[text]?.firstLevelStatus ??
-    mapping?.[code]?.ticketStatusText;
-  return (mapped || text || "Unmapped").trim() || "Unmapped";
 }
 
 function buildMonthSkeleton() {
@@ -76,29 +65,28 @@ export default function ClaimVsClosedPage() {
     applyEmployeeVisibility: false,
     applyRepairVisibility: false,
   });
-  const mappingQuery = useTicketStatusMapping();
 
   const months = useMemo(() => buildMonthSkeleton(), []);
 
-  const { comparisonData, averageTrend, totalCreated, totalApproved, averageHoursAcrossRange } =
+  const { comparisonData, averageTrend, totalCreated, totalCompleted, averageHoursAcrossRange } =
     useMemo(() => {
       if (!data) {
         return {
           comparisonData: [] as ChartRow[],
           averageTrend: [] as AverageRow[],
           totalCreated: 0,
-          totalApproved: 0,
+          totalCompleted: 0,
           averageHoursAcrossRange: 0,
         };
       }
 
       const buckets = new Map<string, MonthBucket>(
-        months.map((month) => [month.key, { createdCount: 0, claimApprovedCount: 0, totalMinutes: 0 }])
+        months.map((month) => [month.key, { createdCount: 0, completedCount: 0, totalMinutes: 0 }])
       );
 
       let totalCreated = 0;
-      let totalApproved = 0;
-      let totalClaimMinutes = 0;
+      let totalCompleted = 0;
+      let totalCompletionMinutes = 0;
 
       Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
         const created = parseTicketDate(ticketEntry.ticket.CreatedOn);
@@ -112,27 +100,22 @@ export default function ClaimVsClosedPage() {
           totalCreated += 1;
         }
 
-        const firstLevelStatus = getFirstLevelStatus(ticketEntry, mappingQuery.data);
-        const normalizedStatus = firstLevelStatus.toLowerCase();
-        const statusCode = (ticketEntry.ticket.TicketStatus || "").toLowerCase();
-        const isClaimApproved =
-          normalizedStatus.includes("claim approved") || normalizedStatus === "z8" || statusCode === "z8";
-
-        if (!isClaimApproved) return;
-
         const consumed = parseTimeConsumed(ticketEntry.ticket.Z1Z8TimeConsumed);
-        const claimDate = new Date(created.getTime() + consumed.totalMinutes * 60 * 1000);
-        const approvalMoment = Number.isNaN(claimDate.getTime()) ? created : claimDate;
-        const approvalMonth = startOfMonth(approvalMoment);
-        const approvalKey = format(approvalMonth, "yyyy-MM");
+        if (consumed.totalMinutes <= 0) return;
 
-        if (approvalMonth < START_MONTH || approvalMonth > END_MONTH || !buckets.has(approvalKey)) return;
+        const completionDate = new Date(created.getTime() + consumed.totalMinutes * 60 * 1000);
+        if (Number.isNaN(completionDate.getTime())) return;
 
-        const bucket = buckets.get(approvalKey)!;
-        bucket.claimApprovedCount += 1;
+        const completionMonth = startOfMonth(completionDate);
+        const completionKey = format(completionMonth, "yyyy-MM");
+
+        if (completionMonth < START_MONTH || completionMonth > END_MONTH || !buckets.has(completionKey)) return;
+
+        const bucket = buckets.get(completionKey)!;
+        bucket.completedCount += 1;
         bucket.totalMinutes += consumed.totalMinutes;
-        totalApproved += 1;
-        totalClaimMinutes += consumed.totalMinutes;
+        totalCompleted += 1;
+        totalCompletionMinutes += consumed.totalMinutes;
       });
 
       const comparisonData: ChartRow[] = months.map((month) => {
@@ -140,14 +123,14 @@ export default function ClaimVsClosedPage() {
         return {
           month: month.label,
           created: bucket.createdCount,
-          claimApproved: bucket.claimApprovedCount,
+          completed: bucket.completedCount,
         };
       });
 
       const averageTrend: AverageRow[] = months.map((month) => {
         const bucket = buckets.get(month.key)!;
         const averageMinutes =
-          bucket.claimApprovedCount > 0 ? bucket.totalMinutes / bucket.claimApprovedCount : 0;
+          bucket.completedCount > 0 ? bucket.totalMinutes / bucket.completedCount : 0;
         return {
           month: month.label,
           averageHours: Number((averageMinutes / 60).toFixed(1)),
@@ -155,24 +138,24 @@ export default function ClaimVsClosedPage() {
       });
 
       const averageHoursAcrossRange =
-        totalApproved > 0 ? Number((totalClaimMinutes / totalApproved / 60).toFixed(1)) : 0;
+        totalCompleted > 0 ? Number((totalCompletionMinutes / totalCompleted / 60).toFixed(1)) : 0;
 
       return {
         comparisonData,
         averageTrend,
         totalCreated,
-        totalApproved,
+        totalCompleted,
         averageHoursAcrossRange,
       };
-    }, [data, mappingQuery.data, months]);
+    }, [data, months]);
 
-  if (isLoading || mappingQuery.isLoading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div>
           <h2 className="text-3xl font-bold">Claim vs Closed</h2>
           <p className="text-muted-foreground mt-2">
-            Visualizing creation versus claim approval volumes and time consumed, starting from Jan 2025.
+            Visualizing creation versus completion volumes and time consumed, starting from Jan 2025.
           </p>
         </div>
         <Card>
@@ -189,13 +172,8 @@ export default function ClaimVsClosedPage() {
     );
   }
 
-  if (error || mappingQuery.error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : mappingQuery.error instanceof Error
-        ? mappingQuery.error.message
-        : "Unknown error";
+  if (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     return (
       <div className="p-6 text-destructive flex items-center gap-2">
         <AlertCircle className="h-5 w-5" />
@@ -209,8 +187,8 @@ export default function ClaimVsClosedPage() {
       <div>
         <h2 className="text-3xl font-bold">Claim vs Closed</h2>
         <p className="text-muted-foreground mt-2">
-          Compare monthly ticket creation with derived claim approvals and track the average time consumed to
-          reach approval.
+          Compare monthly ticket creation with completion months inferred from CreatedOn + Z1Z8 Time Consumed,
+          and track average hours consumed.
         </p>
       </div>
 
@@ -222,15 +200,15 @@ export default function ClaimVsClosedPage() {
           icon={Clock}
         />
         <StatCard
-          title="Claim Approved"
-          value={totalApproved}
-          description="Approvals inferred from Z8 status and time consumed"
+          title="Completed via Z1Z8"
+          value={totalCompleted}
+          description="Tickets with time consumed placed on completion month"
           icon={CheckCircle2}
         />
         <StatCard
-          title="Avg Hours to Approve"
+          title="Avg Hours Consumed"
           value={`${averageHoursAcrossRange}h`}
-          description="Average Z1Z8 time consumed across approvals"
+          description="Average Z1Z8 time consumed across completions"
           icon={TrendingUp}
         />
         <StatCard
@@ -244,9 +222,9 @@ export default function ClaimVsClosedPage() {
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Monthly Created vs Claim Approved</CardTitle>
+            <CardTitle>Monthly Created vs Completed</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Dual bars highlight creation volumes against derived claim approvals.
+              CreatedOn month compared to completion month (CreatedOn + Z1Z8 time consumed).
             </p>
           </CardHeader>
           <CardContent className="h-[420px]">
@@ -258,7 +236,7 @@ export default function ClaimVsClosedPage() {
                 <Tooltip />
                 <Legend />
                 <Bar dataKey="created" name="Created" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="claimApproved" name="Claim Approved" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="completed" name="Completed (Z1Z8)" fill="#22c55e" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -266,9 +244,9 @@ export default function ClaimVsClosedPage() {
 
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Average Time Consumed per Approval</CardTitle>
+            <CardTitle>Average Time Consumed per Completion</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Trend line of Z1Z8 time consumed (in hours) for claim approvals each month.
+              Trend line of Z1Z8 time consumed (in hours) for completions each month.
             </p>
           </CardHeader>
           <CardContent className="h-[420px]">
