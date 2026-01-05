@@ -66,7 +66,6 @@ function buildMatrix(normalized: NormalizedTicket[], claimType: ClaimType, rows:
       scoped = claimTickets.filter((ticket) => ticket.created.getFullYear() === row.year);
     } else {
       scoped = claimTickets.filter((ticket) => {
-        if (!ticket.isOpen) return false;
         const age = monthsSince(ticket.created);
         if (Number.isNaN(age)) return false;
         return age <= row.maxMonths;
@@ -80,7 +79,11 @@ function buildMatrix(normalized: NormalizedTicket[], claimType: ClaimType, rows:
       return { status, count, percent };
     });
 
-    const uniqueOpenNames = new Set(scoped.map((ticket) => ticket.base.ticket.TicketName || "")).size;
+    const uniqueOpenNames = new Set(
+      scoped
+        .filter((ticket) => ticket.isOpen)
+        .map((ticket) => ticket.base.ticket.TicketName || "")
+    ).size;
 
     return { row, total, byStatus, uniqueOpenNames };
   });
@@ -92,10 +95,10 @@ const ROWS: RowBucket[] = [
   { id: "y2023", label: "Created in 2023", type: "year", year: 2023 },
   { id: "y2024", label: "Created in 2024", type: "year", year: 2024 },
   { id: "y2025", label: "Created in 2025", type: "year", year: 2025 },
-  { id: "open-1", label: "Open ≤ 1 month", type: "open", maxMonths: 1 },
-  { id: "open-3", label: "Open ≤ 3 months", type: "open", maxMonths: 3 },
-  { id: "open-6", label: "Open ≤ 6 months", type: "open", maxMonths: 6 },
-  { id: "open-12", label: "Open ≤ 12 months", type: "open", maxMonths: 12 },
+  { id: "open-1", label: "Created ≤ 1 month", type: "created-age", maxMonths: 1 },
+  { id: "open-3", label: "Created ≤ 3 months", type: "created-age", maxMonths: 3 },
+  { id: "open-6", label: "Created ≤ 6 months", type: "created-age", maxMonths: 6 },
+  { id: "open-12", label: "Created ≤ 12 months", type: "created-age", maxMonths: 12 },
 ];
 
 function MatrixTable({
@@ -148,7 +151,7 @@ function MatrixTable({
                   </Badge>
                 </TableCell>
                 <TableCell className="font-medium">
-                  {row.type === "open" ? uniqueOpenNames ?? 0 : <span className="text-muted-foreground">-</span>}
+                  {row.type === "created-age" ? uniqueOpenNames ?? 0 : <span className="text-muted-foreground">-</span>}
                 </TableCell>
               </TableRow>
             ))}
