@@ -1,41 +1,52 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { EmployeeStats } from "@/types/ticket";
-import { analyzeEmployees } from "@/utils/dataParser";
+import { analyzeEmployees, filterTicketsByFirstLevelStatus } from "@/utils/dataParser";
 import StatCard from "@/components/StatCard";
-import { Users, CheckCircle, Clock, AlertCircle } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Users, CheckCircle, Clock, AlertCircle, UserSearch } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatTimeBreakdown } from "@/utils/timeParser";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
-import { PaginationControls } from "@/components/PaginationControls";
-
-const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
-const PAGE_SIZE = 50;
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTicketStatusMapping } from "@/hooks/useTicketStatusMapping";
 
 export default function EmployeesPage() {
   const { data, isLoading, error } = useVisibleTickets({ applyEmployeeVisibility: true });
-  const [page, setPage] = useState(1);
+  const mappingQuery = useTicketStatusMapping();
+  const [hideClosed, setHideClosed] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
+
+  const filteredTickets = useMemo(() => {
+    if (!data) return undefined;
+    return hideClosed
+      ? filterTicketsByFirstLevelStatus(data, mappingQuery.data, {
+          excludedFirstLevelStatuses: ["Closed"],
+        })
+      : data;
+  }, [data, hideClosed, mappingQuery.data]);
 
   const employees = useMemo<EmployeeStats[]>(() => {
-    if (!data) return [];
-    return analyzeEmployees(data);
-  }, [data]);
+    if (!filteredTickets) return [];
+    return analyzeEmployees(filteredTickets);
+  }, [filteredTickets]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [employees.length]);
+  const filteredEmployees = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return employees;
+    return employees.filter(
+      (employee) =>
+        employee.employeeName.toLowerCase().includes(term) ||
+        employee.employeeId.toLowerCase().includes(term)
+    );
+  }, [employees, searchTerm]);
 
   const workloadData = useMemo(
     () =>
-      employees.slice(0, 10).map((emp) => ({
+      employees.slice(0, 12).map((emp) => ({
         name: emp.employeeName,
         active: emp.activeTickets,
         completed: emp.completedTickets,
@@ -43,32 +54,35 @@ export default function EmployeesPage() {
     [employees]
   );
 
-  const statusChartData = useMemo(() => {
-    const statusData: Record<string, number> = {};
-    employees.forEach((emp) => {
-      Object.entries(emp.ticketsByStatus).forEach(([status, count]) => {
-        statusData[status] = (statusData[status] || 0) + count;
-      });
-    });
+  const selectedEmployee = useMemo(
+    () => employees.find((emp) => emp.employeeId === selectedEmployeeId),
+    [employees, selectedEmployeeId]
+  );
 
-    return Object.entries(statusData).map(([name, value]) => ({
-      name,
-      value,
-    }));
-  }, [employees]);
+  const selectedEmployeeStatusData = useMemo(() => {
+    if (!selectedEmployee) return [];
+    return Object.entries(selectedEmployee.ticketsByStatus)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [selectedEmployee]);
 
-  const paginatedEmployees = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return employees.slice(start, start + PAGE_SIZE);
-  }, [employees, page]);
-
-  if (isLoading) {
+  if (isLoading || mappingQuery.isLoading) {
     return <div className="p-8">Loading employee data...</div>;
   }
 
-  if (error) {
+  if (error || mappingQuery.error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    return <div className="p-8 text-destructive">Failed to load employee data: {message}</div>;
+    const mappingMessage =
+      mappingQuery.error instanceof Error ? mappingQuery.error.message : "Mapping error";
+    return (
+      <div className="p-8 text-destructive">
+        Failed to load employee data:
+        <ul className="list-disc list-inside mt-2 space-y-1">
+          <li>{message}</li>
+          <li>{mappingMessage}</li>
+        </ul>
+      </div>
+    );
   }
 
   const totalEmployees = employees.length;
@@ -82,7 +96,7 @@ export default function EmployeesPage() {
       <div>
         <h2 className="text-3xl font-bold">Internal Employee Analysis</h2>
         <p className="text-muted-foreground mt-2">
-          Workload and performance metrics for internal staff
+          Focus on non-closed work by admin-visible employees, with quick filtering and status drill-downs.
         </p>
       </div>
 
@@ -91,7 +105,7 @@ export default function EmployeesPage() {
           title="Total Employees"
           value={totalEmployees}
           icon={Users}
-          description="Active employees"
+          description="Visible employees"
         />
         <StatCard
           title="Active Tickets"
@@ -113,106 +127,139 @@ export default function EmployeesPage() {
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>Controls</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <Switch
+              id="hide-closed-first-level"
+              checked={hideClosed}
+              onCheckedChange={setHideClosed}
+              disabled={mappingQuery.isLoading}
+            />
+            <Label htmlFor="hide-closed-first-level" className="text-sm font-medium">
+              Hide tickets with first-level status “Closed” (mapping)
+            </Label>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="employee-search">Search employees</Label>
+              <div className="relative">
+                <UserSearch className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="employee-search"
+                  placeholder="Search by name or ID"
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="employee-select">Focus on an employee</Label>
+              <Select
+                value={selectedEmployeeId}
+                onValueChange={(value) => setSelectedEmployeeId(value)}
+              >
+                <SelectTrigger id="employee-select">
+                  <SelectValue placeholder="Choose an employee to view status mix" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All employees</SelectItem>
+                  {filteredEmployees.map((employee) => (
+                    <SelectItem key={employee.employeeId} value={employee.employeeId}>
+                      {employee.employeeName} ({employee.employeeId})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4">
         <Card>
           <CardHeader>
             <CardTitle>Employee Workload Distribution</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Active and completed ticket counts for {employees.length} visible employees
+            </p>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={420}>
               <BarChart data={workloadData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="active" fill="#F59E0B" name="Active" />
-                <Bar dataKey="completed" fill="#10B981" name="Completed" />
+                <Bar dataKey="active" fill="#F59E0B" name="Active">
+                  <LabelList dataKey="active" position="top" />
+                </Bar>
+                <Bar dataKey="completed" fill="#10B981" name="Completed">
+                  <LabelList dataKey="completed" position="top" />
+                </Bar>
               </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Ticket Status Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={statusChartData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {statusChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Employee Performance Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee Name</TableHead>
-                <TableHead>Employee ID</TableHead>
-                <TableHead className="text-right">Active</TableHead>
-                <TableHead className="text-right">Completed</TableHead>
-                <TableHead className="text-right">Total Time</TableHead>
-                <TableHead className="text-right">Avg Time/Ticket</TableHead>
-                <TableHead>Top Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedEmployees.map((employee) => {
-                const topStatus = Object.entries(employee.ticketsByStatus).sort(
-                  ([, a], [, b]) => b - a
-                )[0];
+      {selectedEmployee && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>{selectedEmployee.employeeName} — Ticket Status Mix</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Status counts for the selected employee
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={360}>
+                <BarChart data={selectedEmployeeStatusData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" angle={-30} textAnchor="end" height={90} />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#3B82F6" name="Tickets">
+                    <LabelList dataKey="value" position="top" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
-                return (
-                  <TableRow key={employee.employeeId}>
-                    <TableCell className="font-medium">{employee.employeeName}</TableCell>
-                    <TableCell className="text-muted-foreground">{employee.employeeId}</TableCell>
-                    <TableCell className="text-right">{employee.activeTickets}</TableCell>
-                    <TableCell className="text-right">{employee.completedTickets}</TableCell>
-                    <TableCell className="text-right">
-                      {formatTimeBreakdown(employee.totalTimeConsumed)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatTimeBreakdown(employee.avgTimePerTicket)}
-                    </TableCell>
-                    <TableCell>
-                      {topStatus ? `${topStatus[0]} (${topStatus[1]})` : "N/A"}
-                    </TableCell>
+          <Card>
+            <CardHeader>
+              <CardTitle>Status Breakdown</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Ticket counts by status for {selectedEmployee.employeeName}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Count</TableHead>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <PaginationControls
-        totalItems={employees.length}
-        pageSize={PAGE_SIZE}
-        page={page}
-        onPageChange={setPage}
-      />
+                </TableHeader>
+                <TableBody>
+                  {selectedEmployeeStatusData.map((status) => (
+                    <TableRow key={status.name}>
+                      <TableCell>{status.name}</TableCell>
+                      <TableCell className="text-right">{status.value}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
