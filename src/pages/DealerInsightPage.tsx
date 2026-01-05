@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DealerStats, TicketData } from "@/types/ticket";
 import { analyzeDealers } from "@/utils/dataParser";
@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatTimeBreakdown } from "@/utils/timeParser";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 
 type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
 
@@ -33,6 +34,8 @@ export default function DealerInsightPage() {
     if (!data) return [];
     return analyzeDealers(data);
   }, [data]);
+
+  const [startMonth, setStartMonth] = useState("2025-01");
 
   const selectedDealer = dealers.find((d) => d.dealerId === dealerId);
 
@@ -105,10 +108,12 @@ export default function DealerInsightPage() {
       timeline[label] = (timeline[label] || 0) + 1;
     });
 
-    return Object.entries(timeline)
+    const sorted = Object.entries(timeline)
       .sort(([a], [b]) => (a > b ? 1 : -1))
       .map(([month, value]) => ({ month, value }));
-  }, [dealerTickets]);
+
+    return sorted.filter(({ month }) => month >= startMonth);
+  }, [dealerTickets, startMonth]);
 
   if (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -224,16 +229,19 @@ export default function DealerInsightPage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Status Volume</CardTitle>
+        <Card className="shadow-sm md:col-span-2">
+          <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <CardTitle>Status Volume</CardTitle>
+              <p className="text-sm text-muted-foreground">Wider view for dense status sets</p>
+            </div>
           </CardHeader>
-          <CardContent className="h-[320px]">
+          <CardContent className="h-[360px]">
             {statusCounts.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={statusCounts}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" interval={0} angle={-25} textAnchor="end" height={80} />
+                  <XAxis dataKey="name" interval={0} angle={-20} textAnchor="end" height={80} />
                   <YAxis />
                   <Tooltip />
                   <Bar dataKey="value" fill="#F59E0B" name="Tickets" radius={[6, 6, 0, 0]} />
@@ -246,8 +254,21 @@ export default function DealerInsightPage() {
         </Card>
 
         <Card className="md:col-span-2 shadow-sm">
-          <CardHeader>
-            <CardTitle>Ticket CreatedOn Trend</CardTitle>
+          <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <CardTitle>Ticket CreatedOn Trend</CardTitle>
+              <p className="text-sm text-muted-foreground">Default start at 2025-01; adjust as needed</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-muted-foreground" htmlFor="trend-start">Start month</label>
+              <Input
+                id="trend-start"
+                type="month"
+                value={startMonth}
+                onChange={(e) => setStartMonth(e.target.value)}
+                className="w-40"
+              />
+            </div>
           </CardHeader>
           <CardContent className="h-[360px]">
             {ticketTrend.length > 0 ? (
