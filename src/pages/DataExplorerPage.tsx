@@ -55,9 +55,9 @@ export default function DataExplorerPage() {
   const tickets = useMemo<EnrichedTicket[]>(() => {
     if (!ticketQuery.data) return [];
     return Object.values(ticketQuery.data.c4cTickets_test.tickets).map((entry) => {
-      const dealer = entry.roles["1001"];
-      const repair = entry.roles["43"];
-      const employee = entry.roles["40"];
+      const dealer = entry.roles?.["1001"];
+      const repair = entry.roles?.["43"];
+      const employee = entry.roles?.["40"];
       const createdOn = entry.ticket.CreatedOn?.trim?.() ?? entry.ticket.CreatedOn;
       const createdDate = new Date(createdOn);
       const normalizedCreated = Number.isNaN(createdDate.getTime()) ? null : createdDate;

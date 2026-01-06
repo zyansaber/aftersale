@@ -47,7 +47,7 @@ export default function DealerInsightPage() {
   const dealerTickets = useMemo(() => {
     if (!dealerId) return [] as TicketEntry[];
     return tickets.filter((ticketEntry) => {
-      const dealer = ticketEntry.roles["1001"];
+      const dealer = ticketEntry.roles?.["1001"];
       const id = dealer?.InvolvedPartyBusinessPartnerID ?? "unknown";
       return id === dealerId;
     });

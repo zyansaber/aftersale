@@ -149,7 +149,7 @@ export default function EmployeesPage() {
     if (!filteredTickets || selectedEmployeeId === "all") return [];
 
     return Object.entries(filteredTickets.c4cTickets_test.tickets)
-      .filter(([, entry]) => entry.roles["40"]?.InvolvedPartyBusinessPartnerID === selectedEmployeeId)
+      .filter(([, entry]) => entry.roles?.["40"]?.InvolvedPartyBusinessPartnerID === selectedEmployeeId)
       .map(([ticketId, entry]) => {
         const createdOn = parseTicketDate(entry.ticket.CreatedOn);
         const ageDays = Number.isNaN(createdOn.getTime())

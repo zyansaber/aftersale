@@ -46,7 +46,7 @@ export default function RepairInsightPage() {
   const repairTickets = useMemo(() => {
     if (!repairId) return [] as TicketEntry[];
     return tickets.filter((ticketEntry) => {
-      const repair = ticketEntry.roles["43"];
+      const repair = ticketEntry.roles?.["43"];
       const id = repair?.InvolvedPartyBusinessPartnerID ?? "no-repair";
       return id === repairId;
     });
