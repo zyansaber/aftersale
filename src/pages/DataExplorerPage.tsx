@@ -18,6 +18,14 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { PageLoader } from "@/components/PageLoader";
 import { FileText, RefreshCw, Search } from "lucide-react";
 import { getNormalizedSerialId } from "@/utils/dataParser";
+import { TicketEntry } from "@/types/ticket";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type EnrichedTicket = {
   id: string;
@@ -32,6 +40,8 @@ type EnrichedTicket = {
   repairId: string;
   repairName: string;
   employeeName: string;
+  amountIncludingTax: string;
+  entry: TicketEntry;
 };
 
 const normalizeValue = (value: string | null | undefined, fallback: string) => {
@@ -52,6 +62,8 @@ export default function DataExplorerPage() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [page, setPage] = useState(1);
+  const [selectedTicket, setSelectedTicket] = useState<TicketEntry | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   const tickets = useMemo<EnrichedTicket[]>(() => {
     if (!ticketQuery.data) return [];
@@ -77,6 +89,8 @@ export default function DataExplorerPage() {
         repairId: normalizeValue(repair?.InvolvedPartyBusinessPartnerID, "no-repair"),
         repairName: normalizeValue(repair?.RepairerBusinessNameID, "No repair assigned"),
         employeeName: normalizeValue(employee?.InvolvedPartyName, "Unassigned"),
+        amountIncludingTax: normalizeValue(entry.ticket.AmountIncludingTax, "0"),
+        entry,
       };
     });
   }, [ticketQuery.data]);
@@ -174,7 +188,7 @@ export default function DataExplorerPage() {
   };
 
   const handleCopy = () => {
-    const payload = filtered.map(({ createdDate, ...rest }) => rest);
+    const payload = filtered.map(({ createdDate, entry, ...rest }) => rest);
     navigator.clipboard
       .writeText(JSON.stringify(payload, null, 2))
       .catch(() => {
@@ -456,7 +470,14 @@ export default function DataExplorerPage() {
             </TableHeader>
             <TableBody>
               {paginated.map((ticket) => (
-                <TableRow key={ticket.id} className="hover:bg-muted/50">
+                <TableRow
+                  key={ticket.id}
+                  className="hover:bg-muted/50 cursor-pointer"
+                  onClick={() => {
+                    setSelectedTicket(ticket.entry);
+                    setIsDetailOpen(true);
+                  }}
+                >
                   <TableCell className="font-medium">{ticket.id}</TableCell>
                   <TableCell className="max-w-[220px]">
                     <p className="font-semibold truncate">{ticket.name}</p>
@@ -500,6 +521,117 @@ export default function DataExplorerPage() {
         page={page}
         onPageChange={setPage}
       />
+
+      <Dialog
+        open={isDetailOpen}
+        onOpenChange={(open) => {
+          setIsDetailOpen(open);
+          if (!open) {
+            setSelectedTicket(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedTicket
+                ? `${selectedTicket.ticket.TicketName || "(no name)"} — #${selectedTicket.ticket.TicketID}`
+                : "Ticket details"}
+            </DialogTitle>
+            <DialogDescription>
+              Full snapshot of the ticket record, including roles, pricing, and normalized chassis details.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedTicket && (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <DetailItem label="Ticket ID" value={selectedTicket.ticket.TicketID} />
+                <DetailItem label="Status" value={selectedTicket.ticket.TicketStatusText} />
+                <DetailItem label="Type" value={selectedTicket.ticket.TicketTypeText} />
+                <DetailItem label="Created On" value={selectedTicket.ticket.CreatedOn} />
+                <DetailItem
+                  label="Amount Including Tax"
+                  value={formatAmount(selectedTicket.ticket.AmountIncludingTax)}
+                />
+                <DetailItem
+                  label="Chassis (Serial ID)"
+                  value={getNormalizedSerialId(selectedTicket) || "—"}
+                />
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Roles</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-3">
+                  <RoleDetail
+                    title="Dealer"
+                    name={selectedTicket.roles?.["1001"]?.RepairerBusinessNameID || "Unknown dealer"}
+                    id={selectedTicket.roles?.["1001"]?.InvolvedPartyBusinessPartnerID || "unknown"}
+                  />
+                  <RoleDetail
+                    title="Repair"
+                    name={selectedTicket.roles?.["43"]?.RepairerBusinessNameID || "No repair assigned"}
+                    id={selectedTicket.roles?.["43"]?.InvolvedPartyBusinessPartnerID || "no-repair"}
+                  />
+                  <RoleDetail
+                    title="Employee"
+                    name={selectedTicket.roles?.["40"]?.InvolvedPartyName || "Unassigned"}
+                    id={selectedTicket.roles?.["40"]?.InvolvedPartyBusinessPartnerID || "unassigned"}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ticket fields</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Raw ticket payload, including pricing and lifecycle metadata.
+                  </p>
+                </CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2">
+                  {Object.entries(selectedTicket.ticket).map(([key, value]) => (
+                    <DetailItem key={key} label={key} value={String(value ?? "—")} />
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+type DetailItemProps = {
+  label: string;
+  value: string;
+};
+
+const DetailItem = ({ label, value }: DetailItemProps) => (
+  <div className="rounded-lg border bg-muted/30 p-3">
+    <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+    <p className="font-semibold break-words">{value || "—"}</p>
+  </div>
+);
+
+type RoleDetailProps = {
+  title: string;
+  name: string;
+  id: string;
+};
+
+const RoleDetail = ({ title, name, id }: RoleDetailProps) => (
+  <div className="rounded-lg border p-3 space-y-1">
+    <p className="text-xs uppercase tracking-wide text-muted-foreground">{title}</p>
+    <p className="font-semibold">{name}</p>
+    <p className="text-xs text-muted-foreground font-mono break-all">{id}</p>
+  </div>
+);
+
+function formatAmount(amount: string) {
+  const parsed = parseFloat(amount);
+  if (Number.isNaN(parsed)) return amount || "—";
+  return parsed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

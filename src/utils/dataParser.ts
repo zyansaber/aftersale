@@ -73,8 +73,15 @@ function getRepairInfo(ticketEntry: TicketEntry) {
 }
 
 export function getNormalizedSerialId(ticketEntry: TicketEntry) {
-  const raw = (ticketEntry.SerialID ?? ticketEntry.ticket.ChassisNumber ?? "").trim();
-  return raw.replace(/-/g, "");
+  const serialId = (ticketEntry.SerialID ?? "").trim();
+  if (serialId) {
+    return serialId.replace(/-/g, "");
+  }
+
+  const ticketName = ticketEntry.ticket.TicketName?.trim?.() ?? ticketEntry.ticket.TicketName;
+  const fallback = ticketName ? ticketName.split(" ").filter(Boolean).pop() ?? "" : "";
+
+  return fallback.replace(/-/g, "");
 }
 
 export async function loadTicketData(): Promise<TicketData> {
