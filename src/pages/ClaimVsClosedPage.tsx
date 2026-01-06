@@ -4,7 +4,6 @@ import { AlertCircle, CheckCircle2, Clock, TrendingUp } from "lucide-react";
 import {
   Bar,
   CartesianGrid,
-  Legend,
   Line,
   LabelList,
   ComposedChart,
@@ -74,6 +73,15 @@ const END_MONTH = endOfMonth(new Date());
 const START_MONTH = startOfMonth(new Date(2025, 0, 1));
 const RECENT_WINDOW_MONTHS = 3;
 const RECENT_START_MONTH = startOfMonth(addMonths(END_MONTH, -(RECENT_WINDOW_MONTHS - 1)));
+const CHART_COLORS = {
+  createdStroke: "#6fa8dc",
+  createdArea: "rgba(111, 168, 220, 0.22)",
+  completedStroke: "#6fb189",
+  averageStroke: "#9a8dc7",
+  averageDot: "#b7acd8",
+  createdBar: "#9cc5f1",
+  completedBar: "#8fd5b5",
+};
 
 function parseTicketDate(raw: string) {
   if (!raw) return new Date("");
@@ -427,7 +435,7 @@ export default function ClaimVsClosedPage() {
         />
       </div>
 
-      <Card className="shadow-sm border border-border/60 bg-gradient-to-r from-sky-50 to-emerald-50">
+      <Card className="shadow-sm border border-border/60 bg-gradient-to-r from-slate-50 via-white to-emerald-50">
         <CardHeader>
           <CardTitle>Average Pace per Month</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -443,16 +451,15 @@ export default function ClaimVsClosedPage() {
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis tickFormatter={(value) => `${value}`} tick={{ fontSize: 12 }} />
               <Tooltip formatter={(value: number, name) => [`${value} / day`, name === "createdDailyAvg" ? "Created per day" : "Completed per day"]} />
-              <Legend />
               {showCreatedLine && (
                 <Area
                   type="monotone"
                   dataKey="createdDailyAvg"
                   name="Created per day"
-                  fill="#0ea5e933"
-                  stroke="#0ea5e9"
+                  fill={CHART_COLORS.createdArea}
+                  stroke={CHART_COLORS.createdStroke}
                   strokeWidth={3}
-                  dot={{ r: 4, fill: "#0ea5e9" }}
+                  dot={{ r: 4, fill: CHART_COLORS.createdStroke }}
                   activeDot={{ r: 6 }}
                 >
                   <LabelList dataKey="createdDailyAvg" position="top" formatter={(value: number) => value.toFixed(2)} />
@@ -462,9 +469,9 @@ export default function ClaimVsClosedPage() {
                 type="monotone"
                 dataKey="completedDailyAvg"
                 name="Completed per day"
-                stroke="#22c55e"
+                stroke={CHART_COLORS.completedStroke}
                 strokeWidth={4}
-                dot={{ r: 4, fill: "#22c55e" }}
+                dot={{ r: 4, fill: CHART_COLORS.completedStroke }}
                 activeDot={{ r: 6 }}
               >
                 <LabelList dataKey="completedDailyAvg" position="top" formatter={(value: number) => value.toFixed(2)} />
@@ -500,18 +507,29 @@ export default function ClaimVsClosedPage() {
                   return [value, name === "created" ? "Created" : "Completed (Z1Z8)"];
                 }}
               />
-              <Legend />
-              <Bar yAxisId="left" dataKey="created" name="Created" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
-              <Bar yAxisId="left" dataKey="completed" name="Completed (Z1Z8)" fill="#22c55e" radius={[6, 6, 0, 0]} />
+              <Bar
+                yAxisId="left"
+                dataKey="created"
+                name="Created"
+                fill={CHART_COLORS.createdBar}
+                radius={[6, 6, 0, 0]}
+              />
+              <Bar
+                yAxisId="left"
+                dataKey="completed"
+                name="Completed (Z1Z8)"
+                fill={CHART_COLORS.completedBar}
+                radius={[6, 6, 0, 0]}
+              />
               <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="averageHours"
                 name="Avg Hours"
-                stroke="#6366f1"
+                stroke={CHART_COLORS.averageStroke}
                 strokeWidth={4}
-                dot={{ r: 4, fill: "#6366f1" }}
-                activeDot={{ r: 6 }}
+                dot={{ r: 4, fill: CHART_COLORS.averageDot }}
+                activeDot={{ r: 6, fill: CHART_COLORS.averageStroke }}
               />
             </ComposedChart>
           </ResponsiveContainer>
