@@ -63,13 +63,13 @@ export default function AftercareGuidesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl font-bold">售后指导知识库</h2>
+          <h2 className="text-3xl font-bold">Aftercare knowledge base</h2>
           <p className="text-muted-foreground">
-            分层目录 + 实时存储 + 智能模糊搜索，打造专业的售后指导资料库。
+            Layered directories + real-time storage + smart fuzzy search to build a professional aftercare library.
           </p>
         </div>
         <Badge variant="outline" className="gap-2">
-          <Sparkles className="h-4 w-4 text-amber-500" /> Firebase 实时驱动
+          <Sparkles className="h-4 w-4 text-amber-500" /> Firebase realtime powered
         </Badge>
       </div>
 
@@ -83,7 +83,7 @@ export default function AftercareGuidesPage() {
             onSelect={setActiveCatalogueId}
             onCreate={async (payload) => {
               await upsertCatalogue(payload);
-              toast.success("目录已创建", { description: payload.name });
+              toast.success("Directory created", { description: payload.name });
             }}
           />
         </div>
@@ -92,11 +92,11 @@ export default function AftercareGuidesPage() {
           <Card className="border-0 bg-white shadow-sm">
             <CardHeader className="space-y-3">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <CardTitle className="text-xl">文件列表</CardTitle>
+                <CardTitle className="text-xl">File list</CardTitle>
                 <div className="relative w-full md:w-80">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
-                    placeholder="模糊搜索文件 / 目录"
+                    placeholder="Fuzzy search files / directories"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-9"
@@ -105,19 +105,19 @@ export default function AftercareGuidesPage() {
               </div>
               <Separator />
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="secondary">实时保存到 Firebase Realtime Database</Badge>
-                <Badge variant="secondary">文件存储：gs://snowy-hr-report.firebasestorage.app</Badge>
-                <Badge variant="secondary">模糊搜索（关键词匹配）</Badge>
+                <Badge variant="secondary">Saved in real time to Firebase Realtime Database</Badge>
+                <Badge variant="secondary">File storage: gs://snowy-hr-report.firebasestorage.app</Badge>
+                <Badge variant="secondary">Fuzzy search (keyword match)</Badge>
               </div>
             </CardHeader>
 
             <CardContent>
-              {loading && <div className="p-6 text-muted-foreground">加载中...</div>}
+              {loading && <div className="p-6 text-muted-foreground">Loading...</div>}
 
               {!loading && searchQuery && (
                 <div className="space-y-3">
                   <div className="text-sm text-muted-foreground">
-                    搜索结果（{searchResults.length}）
+                    Search results ({searchResults.length})
                   </div>
                   <ScrollArea className="h-[520px] pr-4">
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -140,10 +140,10 @@ export default function AftercareGuidesPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm text-muted-foreground">当前目录</div>
-                      <h3 className="text-lg font-semibold">{activeNode?.name ?? "未选择"}</h3>
+                      <div className="text-sm text-muted-foreground">Current directory</div>
+                      <h3 className="text-lg font-semibold">{activeNode?.name ?? "Not selected"}</h3>
                     </div>
-                    <Badge variant="outline">文件 {activeNode?.files.length ?? 0}</Badge>
+                    <Badge variant="outline">Files {activeNode?.files.length ?? 0}</Badge>
                   </div>
 
                   <ScrollArea className="h-[520px] pr-4">

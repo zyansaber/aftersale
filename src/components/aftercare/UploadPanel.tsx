@@ -19,7 +19,7 @@ export const UploadPanel = ({ onUpload, activeCatalogueId }: UploadPanelProps) =
 
   const handleUpload = async () => {
     if (!file || !activeCatalogueId) {
-      toast.error("请选择文件并选中一个目录");
+      toast.error("Please select a file and choose a directory.");
       return;
     }
     try {
@@ -27,11 +27,11 @@ export const UploadPanel = ({ onUpload, activeCatalogueId }: UploadPanelProps) =
       setProgress(25);
       await onUpload({ file, catalogueId: activeCatalogueId });
       setProgress(100);
-      toast.success("文件已上传", { description: file.name });
+      toast.success("File uploaded", { description: file.name });
       setFile(null);
     } catch (err) {
-      toast.error("上传失败", {
-        description: err instanceof Error ? err.message : "无法上传文件",
+      toast.error("Upload failed", {
+        description: err instanceof Error ? err.message : "Unable to upload file",
       });
     } finally {
       setTimeout(() => setUploading(false), 500);
@@ -43,9 +43,9 @@ export const UploadPanel = ({ onUpload, activeCatalogueId }: UploadPanelProps) =
       <CardContent className="p-6 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-lg font-semibold">上传售后指导文件</h3>
+            <h3 className="text-lg font-semibold">Upload aftercare guide files</h3>
             <p className="text-sm text-slate-200">
-              支持 PDF、图片等格式，上传后自动存储到 Firebase Storage，并记录索引到 Realtime DB。
+              Supports PDFs, images, and more. Uploads are saved to Firebase Storage and indexed in Realtime DB.
             </p>
           </div>
           <UploadCloud className="h-8 w-8 text-white/70" />
@@ -53,7 +53,7 @@ export const UploadPanel = ({ onUpload, activeCatalogueId }: UploadPanelProps) =
 
         <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
           <div className="space-y-2">
-            <Label className="text-slate-100">选择文件</Label>
+            <Label className="text-slate-100">Choose a file</Label>
             <Input
               type="file"
               onChange={(e) => {
@@ -63,15 +63,15 @@ export const UploadPanel = ({ onUpload, activeCatalogueId }: UploadPanelProps) =
               className="bg-white/10 text-white placeholder:text-white/60 file:border-0 file:bg-white/20 file:text-white"
             />
             <p className="text-xs text-slate-200">
-              当前目录：{activeCatalogueId ? activeCatalogueId : "未选择"}
+              Current directory: {activeCatalogueId ? activeCatalogueId : "Not selected"}
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-slate-100">上传进度</Label>
+            <Label className="text-slate-100">Upload progress</Label>
             <Progress value={uploading ? progress : 0} className="h-2 bg-white/10" />
             <Button onClick={handleUpload} disabled={uploading} className="w-full bg-white text-slate-900">
-              {uploading ? "上传中..." : "立即上传"}
+              {uploading ? "Uploading..." : "Upload now"}
             </Button>
           </div>
         </div>
@@ -79,4 +79,3 @@ export const UploadPanel = ({ onUpload, activeCatalogueId }: UploadPanelProps) =
     </Card>
   );
 };
-

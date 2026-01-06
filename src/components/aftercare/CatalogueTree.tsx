@@ -73,48 +73,48 @@ export const CatalogueTree = ({ tree, activeId, onSelect, onCreate }: CatalogueT
       <CardContent className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold">知识目录</h3>
-            <p className="text-xs text-muted-foreground">构建层级化的售后指导内容架构</p>
+            <h3 className="text-lg font-semibold">Knowledge catalog</h3>
+            <p className="text-xs text-muted-foreground">Build a hierarchical structure for aftercare guides.</p>
           </div>
           <Sheet open={openSheet} onOpenChange={setOpenSheet}>
             <SheetTrigger asChild>
               <Button size="sm" className="gap-2">
-                <FolderPlus className="h-4 w-4" /> 新建目录
+                <FolderPlus className="h-4 w-4" /> New directory
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[380px]">
               <SheetHeader>
-                <SheetTitle>创建目录</SheetTitle>
-                <SheetDescription>为售后指导文件创建新的分类或子分类。</SheetDescription>
+                <SheetTitle>Create directory</SheetTitle>
+                <SheetDescription>Create a new category or subcategory for aftercare files.</SheetDescription>
               </SheetHeader>
               <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="catalogue-name">目录名称</Label>
+                  <Label htmlFor="catalogue-name">Directory name</Label>
                   <Input
                     id="catalogue-name"
-                    placeholder="例如：发动机保养/诊断指南"
+                    placeholder="e.g. Engine maintenance/Diagnostic guide"
                     value={form.name}
                     onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="catalogue-desc">目录描述</Label>
+                  <Label htmlFor="catalogue-desc">Directory description</Label>
                   <Input
                     id="catalogue-desc"
-                    placeholder="简要说明目录用途"
+                    placeholder="Briefly describe the directory purpose"
                     value={form.description}
                     onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="catalogue-parent">上级目录（可选）</Label>
+                  <Label htmlFor="catalogue-parent">Parent directory (optional)</Label>
                   <select
                     id="catalogue-parent"
                     className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
                     value={form.parentId}
                     onChange={(e) => setForm((prev) => ({ ...prev, parentId: e.target.value }))}
                   >
-                    <option value="">无（顶级目录）</option>
+                    <option value="">None (top-level)</option>
                     {catalogueOptions.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name}
@@ -124,7 +124,7 @@ export const CatalogueTree = ({ tree, activeId, onSelect, onCreate }: CatalogueT
                 </div>
 
                 <Button type="submit" className="w-full" disabled={submitting}>
-                  {submitting ? "创建中..." : "创建目录"}
+                  {submitting ? "Creating..." : "Create directory"}
                 </Button>
               </form>
             </SheetContent>
@@ -138,7 +138,7 @@ export const CatalogueTree = ({ tree, activeId, onSelect, onCreate }: CatalogueT
             {tree.length === 0 && (
               <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-6 text-center text-muted-foreground">
                 <Plus className="h-6 w-6" />
-                <p className="mt-2 text-sm">还没有任何目录，点击右上角创建一个吧。</p>
+                <p className="mt-2 text-sm">No directories yet—click the top right to create one.</p>
               </div>
             )}
             {tree.map((node) => renderNode(node))}
@@ -148,4 +148,3 @@ export const CatalogueTree = ({ tree, activeId, onSelect, onCreate }: CatalogueT
     </Card>
   );
 };
-
