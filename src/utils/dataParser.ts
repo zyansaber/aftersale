@@ -346,14 +346,23 @@ export function analyzeEmployees(data: TicketData): EmployeeStats[] {
 
 export function analyzeRepairs(data: TicketData): RepairStats[] {
   const repairMap = new Map<string, RepairStats>();
+  const repairNameMap = new Map<string, string>();
+
+  const isMeaningfulRepairName = (name?: string) =>
+    !!name && name.trim() !== "" && name !== "No Repair Shop Assigned";
 
   Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
     const { repairId, repairName } = getRepairInfo(ticketEntry);
+    const meaningfulName = isMeaningfulRepairName(repairName) ? repairName : undefined;
+
+    if (meaningfulName) {
+      repairNameMap.set(repairId, meaningfulName);
+    }
 
     if (!repairMap.has(repairId)) {
       repairMap.set(repairId, {
         repairId,
-        repairName,
+        repairName: meaningfulName ?? repairName,
         totalCost: 0,
         avgCost: 0,
         ticketCount: 0,
@@ -363,6 +372,11 @@ export function analyzeRepairs(data: TicketData): RepairStats[] {
     }
 
     const stats = repairMap.get(repairId)!;
+
+    if (meaningfulName && !isMeaningfulRepairName(stats.repairName)) {
+      stats.repairName = meaningfulName;
+    }
+
     const ticket = ticketEntry.ticket;
     const cost = parseFloat(ticket.AmountIncludingTax) || 0;
 
@@ -384,6 +398,10 @@ export function analyzeRepairs(data: TicketData): RepairStats[] {
   // Calculate average cost
   repairMap.forEach((stats) => {
     stats.avgCost = stats.ticketCount > 0 ? stats.totalCost / stats.ticketCount : 0;
+    const bestName = repairNameMap.get(stats.repairId);
+    if (bestName) {
+      stats.repairName = bestName;
+    }
   });
 
   return Array.from(repairMap.values()).sort((a, b) => b.totalCost - a.totalCost);

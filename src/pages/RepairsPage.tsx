@@ -15,12 +15,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import { PaginationControls } from "@/components/PaginationControls";
+import { Button } from "@/components/ui/button";
+import { PageLoader } from "@/components/PageLoader";
 
 const COLORS = ["#10B981", "#F59E0B", "#EF4444", "#3B82F6", "#8B5CF6", "#EC4899"];
 const PAGE_SIZE = 50;
 
 export default function RepairsPage() {
-  const { data, isLoading, error } = useVisibleTickets();
+  const { data, isLoading, error, settings } = useVisibleTickets();
   const [page, setPage] = useState(1);
 
   const repairs = useMemo<RepairStats[]>(() => {
@@ -65,13 +67,22 @@ export default function RepairsPage() {
     return repairs.slice(start, start + PAGE_SIZE);
   }, [page, repairs]);
 
-  if (isLoading) {
-    return <div className="p-8">Loading repair data...</div>;
-  }
-
   if (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return <div className="p-8 text-destructive">Failed to load repair data: {message}</div>;
+  }
+
+  if (isLoading) {
+    return (
+      <PageLoader
+        title="Loading repair analytics"
+        description="Syncing datasets and precomputing aggregations and charts."
+        tasks={[
+          { label: "Ticket dataset", progress: data ? 100 : 0 },
+          { label: "Visibility filters", progress: settings ? 100 : 0 },
+        ]}
+      />
+    );
   }
 
   const totalRepairShops = repairs.length;
@@ -178,11 +189,22 @@ export default function RepairsPage() {
                 <TableHead className="text-right">Low Cost</TableHead>
                 <TableHead className="text-right">Medium Cost</TableHead>
                 <TableHead className="text-right">High Cost</TableHead>
+                <TableHead className="text-right">Insights</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedRepairs.map((repair) => (
-                <TableRow key={repair.repairId}>
+                <TableRow
+                  key={repair.repairId}
+                  className="cursor-pointer transition hover:bg-muted/40"
+                  onClick={() =>
+                    window.open(
+                      `/repair-insights/${encodeURIComponent(repair.repairId)}`,
+                      "_blank",
+                      "noopener,noreferrer,width=1400,height=900"
+                    )
+                  }
+                >
                   <TableCell className="font-medium">{repair.repairName}</TableCell>
                   <TableCell className="text-muted-foreground">{repair.repairId}</TableCell>
                   <TableCell className="text-right">${repair.totalCost.toFixed(2)}</TableCell>
@@ -191,6 +213,24 @@ export default function RepairsPage() {
                   <TableCell className="text-right">{repair.costRanges.low}</TableCell>
                   <TableCell className="text-right">{repair.costRanges.medium}</TableCell>
                   <TableCell className="text-right">{repair.costRanges.high}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(
+                          `/repair-insights/${encodeURIComponent(repair.repairId)}`,
+                          "_blank",
+                          "noopener,noreferrer,width=1400,height=900"
+                        );
+                      }}
+                    >
+                      Advanced view
+                      <TrendingUp className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
