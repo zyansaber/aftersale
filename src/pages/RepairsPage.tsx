@@ -41,6 +41,18 @@ export default function RepairsPage() {
     setPage(1);
   }, [repairs.length]);
 
+  const filteredRepairs = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return repairs.filter((repair) => {
+      const matchesId = selectedRepairId === "all" || repair.repairId === selectedRepairId;
+      const matchesSearch =
+        !normalizedSearch ||
+        repair.repairName.toLowerCase().includes(normalizedSearch) ||
+        repair.repairId.toLowerCase().includes(normalizedSearch);
+      return matchesId && matchesSearch;
+    });
+  }, [repairs, search, selectedRepairId]);
+
   const costRangeData = useMemo(
     () => [
       {
@@ -68,18 +80,6 @@ export default function RepairsPage() {
       })),
     [filteredRepairs]
   );
-
-  const filteredRepairs = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    return repairs.filter((repair) => {
-      const matchesId = selectedRepairId === "all" || repair.repairId === selectedRepairId;
-      const matchesSearch =
-        !normalizedSearch ||
-        repair.repairName.toLowerCase().includes(normalizedSearch) ||
-        repair.repairId.toLowerCase().includes(normalizedSearch);
-      return matchesId && matchesSearch;
-    });
-  }, [repairs, search, selectedRepairId]);
 
   const paginatedRepairs = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
