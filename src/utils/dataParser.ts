@@ -351,12 +351,22 @@ export function analyzeRepairs(data: TicketData): RepairStats[] {
   const isMeaningfulRepairName = (name?: string) =>
     !!name && name.trim() !== "" && name !== "No Repair Shop Assigned";
 
+  const defaultChassisAccumulator = () => ({
+    chassisTicketCount: 0,
+    uniqueChassis: new Set<string>(),
+  });
+  const chassisByRepair = new Map<string, ReturnType<typeof defaultChassisAccumulator>>();
+
   Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
     const { repairId, repairName } = getRepairInfo(ticketEntry);
     const meaningfulName = isMeaningfulRepairName(repairName) ? repairName : undefined;
 
     if (meaningfulName) {
       repairNameMap.set(repairId, meaningfulName);
+    }
+
+    if (!chassisByRepair.has(repairId)) {
+      chassisByRepair.set(repairId, defaultChassisAccumulator());
     }
 
     if (!repairMap.has(repairId)) {
@@ -366,6 +376,10 @@ export function analyzeRepairs(data: TicketData): RepairStats[] {
         totalCost: 0,
         avgCost: 0,
         ticketCount: 0,
+        chassisTicketCount: 0,
+        uniqueChassisCount: 0,
+        chassisTicketRatio: 0,
+        uniqueChassisRatio: 0,
         costByType: {},
         costRanges: { low: 0, medium: 0, high: 0 },
       });
@@ -379,11 +393,18 @@ export function analyzeRepairs(data: TicketData): RepairStats[] {
 
     const ticket = ticketEntry.ticket;
     const cost = parseFloat(ticket.AmountIncludingTax) || 0;
+    const chassisNumber = (ticket.ChassisNumber || "").trim();
 
     stats.totalCost += cost;
     stats.ticketCount++;
     stats.costByType[ticket.TicketTypeText] =
       (stats.costByType[ticket.TicketTypeText] || 0) + cost;
+
+    if (chassisNumber) {
+      const chassisStats = chassisByRepair.get(repairId)!;
+      chassisStats.chassisTicketCount += 1;
+      chassisStats.uniqueChassis.add(chassisNumber);
+    }
 
     // Categorize cost ranges
     if (cost < 500) {
@@ -402,6 +423,14 @@ export function analyzeRepairs(data: TicketData): RepairStats[] {
     if (bestName) {
       stats.repairName = bestName;
     }
+
+    const chassisStats = chassisByRepair.get(stats.repairId) ?? defaultChassisAccumulator();
+    stats.chassisTicketCount = chassisStats.chassisTicketCount;
+    stats.uniqueChassisCount = chassisStats.uniqueChassis.size;
+    stats.chassisTicketRatio =
+      stats.ticketCount > 0 ? chassisStats.chassisTicketCount / stats.ticketCount : 0;
+    stats.uniqueChassisRatio =
+      stats.ticketCount > 0 ? chassisStats.uniqueChassis.size / stats.ticketCount : 0;
   });
 
   return Array.from(repairMap.values()).sort((a, b) => b.totalCost - a.totalCost);
