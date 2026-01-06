@@ -8,6 +8,7 @@ import AgedClaimReportPage from "@/pages/AgedClaimReportPage";
 import ClaimVsClosedPage from "@/pages/ClaimVsClosedPage";
 import EmployeesPage from "@/pages/EmployeesPage";
 import RepairsPage from "@/pages/RepairsPage";
+import RepairInsightPage from "@/pages/RepairInsightPage";
 import AdminPage from "@/pages/AdminPage";
 import TicketsPage from "@/pages/TicketsPage";
 import MappingPage from "@/pages/MappingPage";
@@ -19,7 +20,8 @@ const queryClient = new QueryClient();
 const AppShell = () => {
   const location = useLocation();
   const activeTab = location.pathname.split("/")[1] || "admin";
-  const hideSidebar = location.pathname.startsWith("/dealer-insights");
+  const hideSidebar =
+    location.pathname.startsWith("/dealer-insights") || location.pathname.startsWith("/repair-insights");
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -32,6 +34,7 @@ const AppShell = () => {
           <Route path="/mapping" element={<MappingPage />} />
           <Route path="/dealerships" element={<DealershipsPage />} />
           <Route path="/dealer-insights/:dealerId" element={<DealerInsightPage />} />
+          <Route path="/repair-insights/:repairId" element={<RepairInsightPage />} />
           <Route path="/claim-vs-closed" element={<ClaimVsClosedPage />} />
           <Route path="/aged-claim-report" element={<AgedClaimReportPage />} />
           <Route path="/employees" element={<EmployeesPage />} />
