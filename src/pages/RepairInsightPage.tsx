@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageLoader } from "@/components/PageLoader";
+import { getNormalizedTicketId } from "@/utils/ticketId";
 
 type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
 
@@ -72,9 +73,9 @@ export default function RepairInsightPage() {
   const chassisDuplicateDistribution = useMemo(() => {
     const counts: Record<string, number> = {};
     repairTickets.forEach((ticketEntry) => {
-      const chassis = (ticketEntry.ticket.ChassisNumber || "").trim();
-      if (!chassis) return;
-      counts[chassis] = (counts[chassis] || 0) + 1;
+      const ticketIdentifier = getNormalizedTicketId(ticketEntry.ticket);
+      if (!ticketIdentifier) return;
+      counts[ticketIdentifier] = (counts[ticketIdentifier] || 0) + 1;
     });
 
     const distribution = [
