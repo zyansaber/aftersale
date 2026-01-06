@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { RepairStats, TicketData, TicketEntry } from "@/types/ticket";
-import { analyzeRepairs, getNormalizedSerialId } from "@/utils/dataParser";
+import { analyzeRepairs, getNormalizedSerialId, parseAmountIncludingTax } from "@/utils/dataParser";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import StatCard from "@/components/StatCard";
 import { ArrowLeft, DollarSign, FileText, TrendingUp } from "lucide-react";
@@ -59,7 +59,7 @@ export default function RepairInsightPage() {
     ];
 
     repairTickets.forEach((ticketEntry) => {
-      const amount = parseFloat(ticketEntry.ticket.AmountIncludingTax) || 0;
+      const amount = parseAmountIncludingTax(ticketEntry.ticket.AmountIncludingTax) ?? 0;
       const bucket = buckets.find((b) => amount >= b.min && amount < b.max);
       if (bucket) bucket.count += 1;
     });

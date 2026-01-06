@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DealerStats, TicketData, TicketEntry } from "@/types/ticket";
-import { analyzeDealers, getNormalizedSerialId } from "@/utils/dataParser";
+import { analyzeDealers, getNormalizedSerialId, parseAmountIncludingTax } from "@/utils/dataParser";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import StatCard from "@/components/StatCard";
 import { ArrowLeft, Clock, FileText, TrendingUp } from "lucide-react";
@@ -60,7 +60,7 @@ export default function DealerInsightPage() {
     ];
 
     dealerTickets.forEach((ticketEntry) => {
-      const amount = parseFloat(ticketEntry.ticket.AmountIncludingTax) || 0;
+      const amount = parseAmountIncludingTax(ticketEntry.ticket.AmountIncludingTax) ?? 0;
       const bucket = buckets.find((b) => amount >= b.min && amount < b.max);
       if (bucket) bucket.count += 1;
     });

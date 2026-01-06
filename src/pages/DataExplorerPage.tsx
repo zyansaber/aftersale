@@ -17,7 +17,7 @@ import { useTicketData } from "@/hooks/useTicketData";
 import { PaginationControls } from "@/components/PaginationControls";
 import { PageLoader } from "@/components/PageLoader";
 import { FileText, RefreshCw, Search } from "lucide-react";
-import { getNormalizedSerialId } from "@/utils/dataParser";
+import { getNormalizedSerialId, parseAmountIncludingTax } from "@/utils/dataParser";
 import { TicketEntry } from "@/types/ticket";
 import {
   Dialog,
@@ -631,7 +631,7 @@ const RoleDetail = ({ title, name, id }: RoleDetailProps) => (
 );
 
 function formatAmount(amount: string) {
-  const parsed = parseFloat(amount);
-  if (Number.isNaN(parsed)) return amount || "—";
+  const parsed = parseAmountIncludingTax(amount);
+  if (parsed === null) return amount || "—";
   return parsed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

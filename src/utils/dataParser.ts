@@ -84,6 +84,16 @@ export function getNormalizedSerialId(ticketEntry: TicketEntry) {
   return fallback.replace(/-/g, "");
 }
 
+export function parseAmountIncludingTax(amount: string | null | undefined): number | null {
+  const normalized = (amount ?? "").replace(/,/g, "").trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(normalized);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 export async function loadTicketData(): Promise<TicketData> {
   const ticketsRef = ref(database, "c4cTickets_test/tickets");
   const snapshot = await get(ticketsRef);
@@ -406,7 +416,7 @@ export function analyzeRepairs(data: TicketData): RepairStats[] {
     }
 
     const ticket = ticketEntry.ticket;
-    const cost = parseFloat(ticket.AmountIncludingTax) || 0;
+    const cost = parseAmountIncludingTax(ticket.AmountIncludingTax) ?? 0;
     const chassisNumber = getNormalizedSerialId(ticketEntry);
 
     stats.totalCost += cost;
