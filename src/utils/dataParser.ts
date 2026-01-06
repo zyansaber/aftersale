@@ -65,9 +65,11 @@ function getEmployeeInfo(ticketEntry: TicketEntry) {
 
 function getRepairInfo(ticketEntry: TicketEntry) {
   const repair = ticketEntry.roles["43"];
+  const repairId = repair?.InvolvedPartyBusinessPartnerID?.trim() || "no-repair";
+  const repairName = repair?.RepairerBusinessNameID?.trim() || "No Repair Shop Assigned";
   return {
-    repairId: repair?.InvolvedPartyBusinessPartnerID ?? "no-repair",
-    repairName: repair?.RepairerBusinessNameID ?? "No Repair Shop Assigned",
+    repairId,
+    repairName,
   };
 }
 
