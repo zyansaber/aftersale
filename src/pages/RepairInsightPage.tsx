@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { RepairStats, TicketData } from "@/types/ticket";
-import { analyzeRepairs } from "@/utils/dataParser";
+import { RepairStats, TicketData, TicketEntry } from "@/types/ticket";
+import { analyzeRepairs, getNormalizedSerialId } from "@/utils/dataParser";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import StatCard from "@/components/StatCard";
 import { ArrowLeft, DollarSign, FileText, TrendingUp } from "lucide-react";
@@ -21,8 +21,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageLoader } from "@/components/PageLoader";
-
-type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
 
 export default function RepairInsightPage() {
   const { repairId } = useParams<{ repairId: string }>();
@@ -72,7 +70,7 @@ export default function RepairInsightPage() {
   const chassisDuplicateDistribution = useMemo(() => {
     const counts: Record<string, number> = {};
     repairTickets.forEach((ticketEntry) => {
-      const chassis = (ticketEntry.ticket.ChassisNumber || "").trim();
+      const chassis = getNormalizedSerialId(ticketEntry);
       if (!chassis) return;
       counts[chassis] = (counts[chassis] || 0) + 1;
     });

@@ -3,6 +3,7 @@ export interface TicketData {
     tickets: {
       [ticketId: string]: {
         updatedAt: number;
+        SerialID?: string;
         ticket: Ticket;
         roles: {
           "1001"?: DealerRole;
@@ -137,3 +138,5 @@ export interface TicketStatusMappingEntry {
 }
 
 export type TicketStatusMapping = Record<string, TicketStatusMappingEntry>;
+
+export type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
