@@ -65,7 +65,7 @@ export default function Sidebar({ activeTab }: SidebarProps) {
 
       {!collapsed && (
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800">
-          <p className="text-xs text-slate-400">© 2024 After-Sales Dashboard</p>
+          <p className="text-xs text-slate-400">© 2026 After-Sales Dashboard</p>
         </div>
       )}
     </div>
