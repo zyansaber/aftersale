@@ -68,12 +68,17 @@ export default function AftersaleGuidesPage() {
             Layered directories + real-time storage + smart fuzzy search to build a professional aftersale library.
           </p>
         </div>
-        <Badge variant="outline" className="gap-2">
-          <Sparkles className="h-4 w-4 text-amber-500" /> Firebase realtime powered
-        </Badge>
+        <div className="flex items-center gap-3">
+          <UploadPanel
+            onUpload={uploadGuideFile}
+            activeCatalogueId={activeCatalogueId}
+            catalogues={tree}
+          />
+          <Badge variant="outline" className="gap-2">
+            <Sparkles className="h-4 w-4 text-amber-500" /> Firebase realtime powered
+          </Badge>
+        </div>
       </div>
-
-      <UploadPanel onUpload={uploadGuideFile} activeCatalogueId={activeCatalogueId} />
 
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         <div className="space-y-4">

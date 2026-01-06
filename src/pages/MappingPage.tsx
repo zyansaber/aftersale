@@ -31,8 +31,11 @@ export default function MappingPage() {
 
     const seen = new Map<string, string>();
     Object.values(ticketQuery.data.c4cTickets_test.tickets).forEach((entry) => {
-      if (!seen.has(entry.ticket.TicketStatus)) {
-        seen.set(entry.ticket.TicketStatus, entry.ticket.TicketStatusText);
+      const code = entry.ticket.TicketStatus?.trim();
+      const text = entry.ticket.TicketStatusText?.trim() ?? "";
+
+      if (code && !seen.has(code)) {
+        seen.set(code, text);
       }
     });
 

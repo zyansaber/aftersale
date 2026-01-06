@@ -1,34 +1,78 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/sonner";
-import { UploadCloud } from "lucide-react";
+import { FolderTree, UploadCloud } from "lucide-react";
+import { GuideTreeNode } from "@/types/aftercare";
 
 type UploadPanelProps = {
   onUpload: (payload: { file: File; catalogueId: string }) => Promise<void>;
   activeCatalogueId?: string;
+  catalogues: GuideTreeNode[];
 };
 
-export const UploadPanel = ({ onUpload, activeCatalogueId }: UploadPanelProps) => {
+const buildCatalogueOptions = (nodes: GuideTreeNode[], parents: string[] = []): Array<{
+  id: string;
+  label: string;
+}> => {
+  return nodes.flatMap((node) => {
+    const path = [...parents, node.name];
+    const current = [{ id: node.id, label: path.join(" / ") }];
+    const children = buildCatalogueOptions(node.children, path);
+    return [...current, ...children];
+  });
+};
+
+export const UploadPanel = ({ onUpload, activeCatalogueId, catalogues }: UploadPanelProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [selectedCatalogueId, setSelectedCatalogueId] = useState<string | undefined>(activeCatalogueId);
+
+  const catalogueOptions = useMemo(() => buildCatalogueOptions(catalogues), [catalogues]);
+
+  useEffect(() => {
+    if (activeCatalogueId) {
+      setSelectedCatalogueId(activeCatalogueId);
+    } else if (!selectedCatalogueId && catalogueOptions[0]) {
+      setSelectedCatalogueId(catalogueOptions[0].id);
+    }
+  }, [activeCatalogueId, catalogueOptions, selectedCatalogueId]);
+
+  useEffect(() => {
+    if (!open) {
+      setFile(null);
+      setProgress(0);
+      setUploading(false);
+    }
+  }, [open]);
 
   const handleUpload = async () => {
-    if (!file || !activeCatalogueId) {
-      toast.error("Please select a file and choose a directory.");
+    if (!file || !selectedCatalogueId) {
+      toast.error("Please choose a file and destination folder.");
       return;
     }
     try {
       setUploading(true);
       setProgress(25);
-      await onUpload({ file, catalogueId: activeCatalogueId });
+      await onUpload({ file, catalogueId: selectedCatalogueId });
       setProgress(100);
       toast.success("File uploaded", { description: file.name });
       setFile(null);
+      setOpen(false);
     } catch (err) {
       toast.error("Upload failed", {
         description: err instanceof Error ? err.message : "Unable to upload file",
@@ -39,43 +83,96 @@ export const UploadPanel = ({ onUpload, activeCatalogueId }: UploadPanelProps) =
   };
 
   return (
-    <Card className="border-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shadow-xl">
-      <CardContent className="p-6 space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-semibold">Upload aftercare guide files</h3>
-            <p className="text-sm text-slate-200">
-              Supports PDFs, images, and more. Uploads are saved to Firebase Storage and indexed in Realtime DB.
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="gap-2 bg-slate-900 text-white shadow-sm hover:bg-slate-800">
+          <UploadCloud className="h-4 w-4" />
+          Upload guide
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <FolderTree className="h-5 w-5 text-slate-600" />
+            Upload aftersale guide
+          </DialogTitle>
+          <DialogDescription>
+            Pick a destination folder and attach the guide file. Uploads are saved to Firebase Storage and indexed in Realtime Database.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label>Destination folder</Label>
+            <Select value={selectedCatalogueId} onValueChange={setSelectedCatalogueId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select where to save the file" />
+              </SelectTrigger>
+              <SelectContent>
+                {catalogueOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Organize uploads into the correct directory before saving.
             </p>
           </div>
-          <UploadCloud className="h-8 w-8 text-white/70" />
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
           <div className="space-y-2">
-            <Label className="text-slate-100">Choose a file</Label>
-            <Input
-              type="file"
-              onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null);
-                setProgress(0);
-              }}
-              className="bg-white/10 text-white placeholder:text-white/60 file:border-0 file:bg-white/20 file:text-white"
-            />
-            <p className="text-xs text-slate-200">
-              Current directory: {activeCatalogueId ? activeCatalogueId : "Not selected"}
+            <Label>Choose a file</Label>
+            <label
+              className={cn(
+                "flex cursor-pointer items-center justify-between rounded-lg border border-dashed px-4 py-3 transition",
+                "hover:border-slate-400 hover:bg-slate-50"
+              )}
+            >
+              <div>
+                <p className="font-medium">{file?.name ?? "Click to select a guide file"}</p>
+                <p className="text-xs text-muted-foreground">PDFs, images, and common documents are supported.</p>
+              </div>
+              <div className="flex items-center gap-2 text-slate-600">
+                <UploadCloud className="h-4 w-4" />
+                <span className="text-sm font-semibold">Browse</span>
+              </div>
+              <input
+                type="file"
+                className="sr-only"
+                onChange={(e) => {
+                  setFile(e.target.files?.[0] ?? null);
+                  setProgress(0);
+                }}
+              />
+            </label>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Upload progress</Label>
+            <Progress value={uploading ? progress : 0} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              Files are uploaded to cloud storage and recorded instantly.
             </p>
           </div>
-
-          <div className="space-y-2">
-            <Label className="text-slate-100">Upload progress</Label>
-            <Progress value={uploading ? progress : 0} className="h-2 bg-white/10" />
-            <Button onClick={handleUpload} disabled={uploading} className="w-full bg-white text-slate-900">
-              {uploading ? "Uploading..." : "Upload now"}
-            </Button>
-          </div>
         </div>
-      </CardContent>
-    </Card>
+
+        <DialogFooter className="gap-2 sm:gap-4">
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={uploading}>
+            Cancel
+          </Button>
+          <Button onClick={handleUpload} disabled={uploading} className="gap-2">
+            {uploading ? (
+              "Uploading..."
+            ) : (
+              <>
+                <UploadCloud className="h-4 w-4" /> Upload now
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
