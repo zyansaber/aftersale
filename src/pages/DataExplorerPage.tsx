@@ -17,6 +17,7 @@ import { useTicketData } from "@/hooks/useTicketData";
 import { PaginationControls } from "@/components/PaginationControls";
 import { PageLoader } from "@/components/PageLoader";
 import { FileText, RefreshCw, Search } from "lucide-react";
+import { getNormalizedTicketId } from "@/utils/ticketId";
 
 type EnrichedTicket = {
   id: string;
@@ -69,7 +70,7 @@ export default function DataExplorerPage() {
         type: normalizeValue(entry.ticket.TicketTypeText, "Unknown"),
         createdOn: createdOn ?? "",
         createdDate: normalizedCreated,
-        chassis: normalizeValue(entry.ticket.ChassisNumber, ""),
+        chassis: getNormalizedTicketId(entry.ticket),
         dealerId: normalizeValue(dealer?.InvolvedPartyBusinessPartnerID, "unknown"),
         dealerName: normalizeValue(dealer?.RepairerBusinessNameID, "Unknown dealer"),
         repairId: normalizeValue(repair?.InvolvedPartyBusinessPartnerID, "no-repair"),
