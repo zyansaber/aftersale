@@ -13,7 +13,7 @@ import { useGuideLibrary } from "@/hooks/useGuideLibrary";
 import { GuideFile, GuideTreeNode } from "@/types/aftercare";
 import { Search, Sparkles } from "lucide-react";
 
-export default function AftercareGuidesPage() {
+export default function AftersaleGuidesPage() {
   const {
     tree,
     loading,
@@ -63,9 +63,9 @@ export default function AftercareGuidesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl font-bold">Aftercare knowledge base</h2>
+          <h2 className="text-3xl font-bold">Aftersale knowledge base</h2>
           <p className="text-muted-foreground">
-            Layered directories + real-time storage + smart fuzzy search to build a professional aftercare library.
+            Layered directories + real-time storage + smart fuzzy search to build a professional aftersale library.
           </p>
         </div>
         <Badge variant="outline" className="gap-2">

@@ -18,7 +18,7 @@ export default function Sidebar({ activeTab }: SidebarProps) {
     { id: "data-explorer", label: "Data Explorer", icon: FileText, to: "/data-explorer" },
     { id: "claim-vs-closed", label: "Claim vs Closed", icon: TrendingUp, to: "/claim-vs-closed" },
     { id: "aged-claim-report", label: "Aged Claim Report", icon: BarChart2, to: "/aged-claim-report" },
-    { id: "aftercare-guides", label: "Aftercare Guides", icon: FolderKanban, to: "/aftercare-guides" },
+    { id: "aftersale-guides", label: "Aftersale Guides", icon: FolderKanban, to: "/aftersale-guides" },
     { id: "mapping", label: "Mapping", icon: MapPin, to: "/mapping" },
     { id: "admin", label: "Admin", icon: Shield, to: "/admin" },
   ];
