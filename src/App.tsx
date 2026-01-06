@@ -10,6 +10,7 @@ import EmployeesPage from "@/pages/EmployeesPage";
 import RepairsPage from "@/pages/RepairsPage";
 import RepairInsightPage from "@/pages/RepairInsightPage";
 import AdminPage from "@/pages/AdminPage";
+import DataExplorerPage from "@/pages/DataExplorerPage";
 import TicketsPage from "@/pages/TicketsPage";
 import MappingPage from "@/pages/MappingPage";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
@@ -37,6 +38,7 @@ const AppShell = () => {
           <Route path="/repair-insights/:repairId" element={<RepairInsightPage />} />
           <Route path="/claim-vs-closed" element={<ClaimVsClosedPage />} />
           <Route path="/aged-claim-report" element={<AgedClaimReportPage />} />
+          <Route path="/data-explorer" element={<DataExplorerPage />} />
           <Route path="/employees" element={<EmployeesPage />} />
           <Route path="/repairs" element={<RepairsPage />} />
           <Route path="*" element={<Navigate to="/admin" replace />} />

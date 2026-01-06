@@ -104,6 +104,10 @@ export interface RepairStats {
   totalCost: number;
   avgCost: number;
   ticketCount: number;
+  chassisTicketCount: number;
+  uniqueChassisCount: number;
+  chassisTicketRatio: number;
+  uniqueChassisRatio: number;
   costByType: Record<string, number>;
   costRanges: {
     low: number;

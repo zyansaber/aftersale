@@ -17,13 +17,20 @@ import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import { PaginationControls } from "@/components/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { PageLoader } from "@/components/PageLoader";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const COLORS = ["#10B981", "#F59E0B", "#EF4444", "#3B82F6", "#8B5CF6", "#EC4899"];
 const PAGE_SIZE = 50;
 
 export default function RepairsPage() {
-  const { data, isLoading, error, settings } = useVisibleTickets();
+  const { data, isLoading, error, settings } = useVisibleTickets({
+    applyRepairVisibility: false,
+  });
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [selectedRepairId, setSelectedRepairId] = useState<string>("all");
 
   const repairs = useMemo<RepairStats[]>(() => {
     if (!data) return [];
@@ -38,34 +45,51 @@ export default function RepairsPage() {
     () => [
       {
         name: "Low (<$500)",
-        value: repairs.reduce((sum, r) => sum + r.costRanges.low, 0),
+        value: filteredRepairs.reduce((sum, r) => sum + r.costRanges.low, 0),
       },
       {
         name: "Medium ($500-$2000)",
-        value: repairs.reduce((sum, r) => sum + r.costRanges.medium, 0),
+        value: filteredRepairs.reduce((sum, r) => sum + r.costRanges.medium, 0),
       },
       {
         name: "High (>$2000)",
-        value: repairs.reduce((sum, r) => sum + r.costRanges.high, 0),
+        value: filteredRepairs.reduce((sum, r) => sum + r.costRanges.high, 0),
       },
     ],
-    [repairs]
+    [filteredRepairs]
   );
 
   const topShopsData = useMemo(
     () =>
-      repairs.slice(0, 5).map((r) => ({
+      filteredRepairs.slice(0, 5).map((r) => ({
         name: r.repairName,
         totalCost: r.totalCost,
         avgCost: r.avgCost,
       })),
-    [repairs]
+    [filteredRepairs]
   );
+
+  const filteredRepairs = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return repairs.filter((repair) => {
+      const matchesId = selectedRepairId === "all" || repair.repairId === selectedRepairId;
+      const matchesSearch =
+        !normalizedSearch ||
+        repair.repairName.toLowerCase().includes(normalizedSearch) ||
+        repair.repairId.toLowerCase().includes(normalizedSearch);
+      return matchesId && matchesSearch;
+    });
+  }, [repairs, search, selectedRepairId]);
 
   const paginatedRepairs = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
-    return repairs.slice(start, start + PAGE_SIZE);
-  }, [page, repairs]);
+    return filteredRepairs.slice(start, start + PAGE_SIZE);
+  }, [page, filteredRepairs]);
+
+  const repairOptions = useMemo(
+    () => repairs.map((repair) => ({ id: repair.repairId, name: repair.repairName })),
+    [repairs]
+  );
 
   if (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -85,10 +109,15 @@ export default function RepairsPage() {
     );
   }
 
-  const totalRepairShops = repairs.length;
-  const totalCost = repairs.reduce((sum, r) => sum + r.totalCost, 0);
-  const totalTickets = repairs.reduce((sum, r) => sum + r.ticketCount, 0);
+  const totalRepairShops = filteredRepairs.length;
+  const totalCost = filteredRepairs.reduce((sum, r) => sum + r.totalCost, 0);
+  const totalTickets = filteredRepairs.reduce((sum, r) => sum + r.ticketCount, 0);
   const avgCostPerTicket = totalTickets > 0 ? (totalCost / totalTickets).toFixed(2) : 0;
+  const averageChassisTicketRatio =
+    filteredRepairs.length > 0
+      ? (filteredRepairs.reduce((sum, r) => sum + r.chassisTicketRatio, 0) / filteredRepairs.length) *
+        100
+      : 0;
 
   return (
     <div className="space-y-6">
@@ -98,6 +127,58 @@ export default function RepairsPage() {
           Cost analysis and repair shop performance metrics
         </p>
       </div>
+
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Full dataset filter by repair shop, with fuzzy search across repair name and ID.
+          </p>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="repair-select">Filter by repair</Label>
+            <Select
+              value={selectedRepairId}
+              onValueChange={(value) => {
+                setSelectedRepairId(value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger id="repair-select">
+                <SelectValue placeholder="All repairs" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All repairs ({repairs.length})</SelectItem>
+                {repairOptions.map((repair) => (
+                  <SelectItem key={repair.id} value={repair.id}>
+                    {repair.name} ({repair.id})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="repair-search">Fuzzy search</Label>
+            <Input
+              id="repair-search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search repair name or ID"
+            />
+            <p className="text-xs text-muted-foreground">Matches partial text in name or ID.</p>
+          </div>
+          <div className="flex flex-col justify-end gap-2">
+            <p className="text-sm text-muted-foreground">Visible repairs: {filteredRepairs.length}</p>
+            <p className="text-sm text-muted-foreground">
+              Avg chassis ticket ratio: {averageChassisTicketRatio.toFixed(1)}%
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -186,6 +267,10 @@ export default function RepairsPage() {
                 <TableHead className="text-right">Total Cost</TableHead>
                 <TableHead className="text-right">Avg Cost</TableHead>
                 <TableHead className="text-right">Tickets</TableHead>
+                <TableHead className="text-right">Chassis Tickets</TableHead>
+                <TableHead className="text-right">Unique Chassis</TableHead>
+                <TableHead className="text-right">Chassis Ticket %</TableHead>
+                <TableHead className="text-right">Unique Chassis %</TableHead>
                 <TableHead className="text-right">Low Cost</TableHead>
                 <TableHead className="text-right">Medium Cost</TableHead>
                 <TableHead className="text-right">High Cost</TableHead>
@@ -210,6 +295,14 @@ export default function RepairsPage() {
                   <TableCell className="text-right">${repair.totalCost.toFixed(2)}</TableCell>
                   <TableCell className="text-right">${repair.avgCost.toFixed(2)}</TableCell>
                   <TableCell className="text-right">{repair.ticketCount}</TableCell>
+                  <TableCell className="text-right">{repair.chassisTicketCount}</TableCell>
+                  <TableCell className="text-right">{repair.uniqueChassisCount}</TableCell>
+                  <TableCell className="text-right">
+                    {(repair.chassisTicketRatio * 100).toFixed(1)}%
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {(repair.uniqueChassisRatio * 100).toFixed(1)}%
+                  </TableCell>
                   <TableCell className="text-right">{repair.costRanges.low}</TableCell>
                   <TableCell className="text-right">{repair.costRanges.medium}</TableCell>
                   <TableCell className="text-right">{repair.costRanges.high}</TableCell>
