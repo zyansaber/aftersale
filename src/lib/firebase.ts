@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, get, set } from "firebase/database";
+import { getDatabase, ref as databaseRef, get, set, update, child, push } from "firebase/database";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, listAll } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -24,5 +25,20 @@ if (missingEnvVars.length > 0) {
 
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
+const storage = getStorage(app, "gs://snowy-hr-report.firebasestorage.app");
 
-export { database, ref, get, set };
+export {
+  database,
+  databaseRef as ref,
+  databaseRef,
+  get,
+  set,
+  child,
+  push,
+  update,
+  storage,
+  storageRef,
+  uploadBytes,
+  getDownloadURL,
+  listAll,
+};

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Users, Wrench, ChevronLeft, ChevronRight, Shield, Ticket, MapPin, BarChart2, TrendingUp, FileText } from "lucide-react";
+import { Users, Wrench, ChevronLeft, ChevronRight, Shield, Ticket, MapPin, BarChart2, TrendingUp, FileText, FolderKanban } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 
@@ -18,6 +18,7 @@ export default function Sidebar({ activeTab }: SidebarProps) {
     { id: "data-explorer", label: "Data Explorer", icon: FileText, to: "/data-explorer" },
     { id: "claim-vs-closed", label: "Claim vs Closed", icon: TrendingUp, to: "/claim-vs-closed" },
     { id: "aged-claim-report", label: "Aged Claim Report", icon: BarChart2, to: "/aged-claim-report" },
+    { id: "aftercare-guides", label: "Aftercare Guides", icon: FolderKanban, to: "/aftercare-guides" },
     { id: "mapping", label: "Mapping", icon: MapPin, to: "/mapping" },
     { id: "admin", label: "Admin", icon: Shield, to: "/admin" },
   ];
