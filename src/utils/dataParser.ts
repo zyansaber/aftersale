@@ -48,7 +48,7 @@ export async function updateDisplaySetting(
 }
 
 function getDealerInfo(ticketEntry: TicketEntry) {
-  const dealer = ticketEntry.roles["1001"];
+  const dealer = ticketEntry.roles?.["1001"];
   return {
     dealerId: dealer?.InvolvedPartyBusinessPartnerID ?? "unknown",
     dealerName: dealer?.RepairerBusinessNameID ?? "Unknown Dealer",
@@ -56,7 +56,7 @@ function getDealerInfo(ticketEntry: TicketEntry) {
 }
 
 function getEmployeeInfo(ticketEntry: TicketEntry) {
-  const employee = ticketEntry.roles["40"];
+  const employee = ticketEntry.roles?.["40"];
   return {
     employeeId: employee?.InvolvedPartyBusinessPartnerID ?? "unassigned",
     employeeName: employee?.InvolvedPartyName ?? "Unassigned",
@@ -64,7 +64,7 @@ function getEmployeeInfo(ticketEntry: TicketEntry) {
 }
 
 function getRepairInfo(ticketEntry: TicketEntry) {
-  const repair = ticketEntry.roles["43"];
+  const repair = ticketEntry.roles?.["43"];
   const repairId = repair?.InvolvedPartyBusinessPartnerID?.trim() || "no-repair";
   const repairName = repair?.RepairerBusinessNameID?.trim() || "No Repair Shop Assigned";
   return {
@@ -270,7 +270,7 @@ export function analyzeDealers(data: TicketData): DealerStats[] {
   dealerMap.forEach((stats, dealerId) => {
     const times = Object.values(data.c4cTickets_test.tickets)
       .filter((t) => {
-        const dealer = t.roles["1001"];
+        const dealer = t.roles?.["1001"];
         if (!dealer || !dealer.InvolvedPartyBusinessPartnerID) {
           return dealerId === "unknown" && t.ticket.Z1Z8TimeConsumed;
         }
@@ -322,7 +322,7 @@ export function analyzeEmployees(data: TicketData): EmployeeStats[] {
   employeeMap.forEach((stats, employeeId) => {
     const times = Object.values(data.c4cTickets_test.tickets)
       .filter((t) => {
-        const employee = t.roles["40"];
+        const employee = t.roles?.["40"];
         if (!employee || !employee.InvolvedPartyBusinessPartnerID) {
           return employeeId === "unassigned" && t.ticket.Z1Z8TimeConsumed;
         }

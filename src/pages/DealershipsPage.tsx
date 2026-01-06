@@ -74,7 +74,7 @@ export default function DealershipsPage() {
     type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
     const map: Record<string, TicketEntry[]> = {};
     tickets.forEach((ticketEntry) => {
-      const dealer = ticketEntry.roles["1001"];
+      const dealer = ticketEntry.roles?.["1001"];
       const dealerId = dealer?.InvolvedPartyBusinessPartnerID ?? "unknown";
       map[dealerId] = map[dealerId] ?? [];
       map[dealerId].push(ticketEntry);

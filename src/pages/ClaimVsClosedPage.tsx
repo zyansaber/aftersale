@@ -91,7 +91,7 @@ function parseTicketDate(raw: string) {
 }
 
 function getEmployeeDetails(ticketEntry: TicketEntry) {
-  const employee = ticketEntry.roles["40"];
+  const employee = ticketEntry.roles?.["40"];
   return {
     employeeId: employee?.InvolvedPartyBusinessPartnerID ?? "unassigned",
     employeeName: employee?.InvolvedPartyName ?? "Unassigned",
