@@ -31,7 +31,7 @@ export const GuidePreviewDialog = ({ file, open, onOpenChange }: GuidePreviewDia
             <span>{file.name}</span>
             <Button asChild variant="outline" size="sm" className="gap-2">
               <a href={file.downloadUrl} download target="_blank" rel="noreferrer">
-                <Download className="h-4 w-4" /> 下载
+                <Download className="h-4 w-4" /> Download
               </a>
             </Button>
           </DialogTitle>
@@ -57,7 +57,7 @@ export const GuidePreviewDialog = ({ file, open, onOpenChange }: GuidePreviewDia
 
           {!isImage && !isPdf && (
             <div className="flex h-40 flex-col items-center justify-center rounded-lg border bg-slate-50 text-muted-foreground">
-              <p>该文件类型不支持内嵌预览，请直接下载。</p>
+              <p>This file type cannot be previewed inline. Please download it directly.</p>
             </div>
           )}
         </div>
@@ -65,4 +65,3 @@ export const GuidePreviewDialog = ({ file, open, onOpenChange }: GuidePreviewDia
     </Dialog>
   );
 };
-

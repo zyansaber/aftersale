@@ -65,8 +65,8 @@ export default function MappingPage() {
       firstLevelStatus,
     });
 
-    toast.success("Mapping 已提交到 Firebase", {
-      description: `${row.code} → ${firstLevelStatus || "（空）"}`,
+    toast.success("Mapping submitted to Firebase", {
+      description: `${row.code} → ${firstLevelStatus || "(empty)"}`,
     });
   };
 
@@ -96,13 +96,13 @@ export default function MappingPage() {
       <div>
         <h2 className="text-3xl font-bold">Ticket Status Mapping</h2>
         <p className="text-muted-foreground mt-2">
-          列出所有 TicketStatus 与 TicketStatusText，并可以填写 First Level Status，同步到 Firebase。
+          List every TicketStatus and TicketStatusText, fill the First Level Status, and sync it to Firebase.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Mapping 列表</CardTitle>
+          <CardTitle>Mapping list</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -111,7 +111,7 @@ export default function MappingPage() {
                 <TableHead className="w-[140px]">TicketStatus</TableHead>
                 <TableHead>TicketStatusText</TableHead>
                 <TableHead className="w-[220px]">First Level Status</TableHead>
-                <TableHead className="w-[120px]">操作</TableHead>
+                <TableHead className="w-[120px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -123,7 +123,7 @@ export default function MappingPage() {
                     <Input
                       value={localMapping[row.code] ?? ""}
                       onChange={(event) => handleChange(row.code, event.target.value)}
-                      placeholder="输入 First Level Status"
+                      placeholder="Enter First Level Status"
                     />
                   </TableCell>
                   <TableCell>
@@ -132,7 +132,7 @@ export default function MappingPage() {
                       onClick={() => handleSave(row)}
                       disabled={mappingQuery.isUpdating || mappingQuery.isLoading}
                     >
-                      保存
+                      Save
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -140,7 +140,7 @@ export default function MappingPage() {
               {statusRows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    无 TicketStatus 数据。
+                    No TicketStatus data.
                   </TableCell>
                 </TableRow>
               )}

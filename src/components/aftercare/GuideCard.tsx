@@ -43,7 +43,7 @@ export const GuideCard = ({ file, onDownload, onPreview }: GuideCardProps) => {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className={cn("inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100", isImage && "bg-indigo-50 text-indigo-600")}></span>
             <div className="leading-tight">
-              <div className="font-medium text-slate-900">{isPdf ? "文档" : isImage ? "图片" : "文件"}</div>
+              <div className="font-medium text-slate-900">{isPdf ? "Document" : isImage ? "Image" : "File"}</div>
               <div className="text-xs text-muted-foreground">{new Date(file.updatedAt).toLocaleString()}</div>
             </div>
           </div>
@@ -60,4 +60,3 @@ export const GuideCard = ({ file, onDownload, onPreview }: GuideCardProps) => {
     </Card>
   );
 };
-
