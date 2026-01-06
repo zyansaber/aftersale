@@ -33,6 +33,11 @@ type EnrichedTicket = {
   employeeName: string;
 };
 
+const normalizeValue = (value: string | null | undefined, fallback: string) => {
+  const trimmed = (value ?? "").trim();
+  return trimmed === "" ? fallback : trimmed;
+};
+
 const PAGE_SIZE = 40;
 
 export default function DataExplorerPage() {
@@ -53,22 +58,23 @@ export default function DataExplorerPage() {
       const dealer = entry.roles["1001"];
       const repair = entry.roles["43"];
       const employee = entry.roles["40"];
-      const createdDate = new Date(entry.ticket.CreatedOn);
+      const createdOn = entry.ticket.CreatedOn?.trim?.() ?? entry.ticket.CreatedOn;
+      const createdDate = new Date(createdOn);
       const normalizedCreated = Number.isNaN(createdDate.getTime()) ? null : createdDate;
 
       return {
-        id: entry.ticket.TicketID,
-        name: entry.ticket.TicketName || "(no name)",
-        status: entry.ticket.TicketStatusText || "Unknown",
-        type: entry.ticket.TicketTypeText || "Unknown",
-        createdOn: entry.ticket.CreatedOn,
+        id: normalizeValue(entry.ticket.TicketID, "unknown"),
+        name: normalizeValue(entry.ticket.TicketName, "(no name)"),
+        status: normalizeValue(entry.ticket.TicketStatusText, "Unknown"),
+        type: normalizeValue(entry.ticket.TicketTypeText, "Unknown"),
+        createdOn: createdOn ?? "",
         createdDate: normalizedCreated,
-        chassis: entry.ticket.ChassisNumber || "",
-        dealerId: dealer?.InvolvedPartyBusinessPartnerID ?? "unknown",
-        dealerName: dealer?.RepairerBusinessNameID ?? "Unknown dealer",
-        repairId: repair?.InvolvedPartyBusinessPartnerID ?? "no-repair",
-        repairName: repair?.RepairerBusinessNameID ?? "No repair assigned",
-        employeeName: employee?.InvolvedPartyName ?? "Unassigned",
+        chassis: normalizeValue(entry.ticket.ChassisNumber, ""),
+        dealerId: normalizeValue(dealer?.InvolvedPartyBusinessPartnerID, "unknown"),
+        dealerName: normalizeValue(dealer?.RepairerBusinessNameID, "Unknown dealer"),
+        repairId: normalizeValue(repair?.InvolvedPartyBusinessPartnerID, "no-repair"),
+        repairName: normalizeValue(repair?.RepairerBusinessNameID, "No repair assigned"),
+        employeeName: normalizeValue(employee?.InvolvedPartyName, "Unassigned"),
       };
     });
   }, [ticketQuery.data]);

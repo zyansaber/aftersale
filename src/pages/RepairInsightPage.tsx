@@ -85,7 +85,7 @@ export default function RepairInsightPage() {
 
     Object.values(counts).forEach((repeatCount) => {
       const bucket = distribution.find((b) => repeatCount >= b.min && repeatCount < b.max);
-      if (bucket) bucket.count += 1;
+      if (bucket) bucket.count += repeatCount;
     });
 
     return distribution;
