@@ -41,39 +41,39 @@ const STATUS_PRIORITY = ["Closed", "Open", "Parts", "Reparing", "Suspended"] as 
 
 const STATUS_STYLES: Record<string, StatusPalette> = {
   Closed: {
-    badgeClass: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    barColor: "#10b981",
-    dotClass: "bg-emerald-400",
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    barColor: "#8fcfb5",
+    dotClass: "bg-emerald-200",
     textClass: "text-emerald-700",
   },
   Open: {
-    badgeClass: "bg-sky-50 text-sky-800 border-sky-200",
-    barColor: "#0ea5e9",
-    dotClass: "bg-sky-400",
+    badgeClass: "bg-sky-50 text-sky-700 border-sky-100",
+    barColor: "#a2cbe7",
+    dotClass: "bg-sky-200",
     textClass: "text-sky-700",
   },
   Parts: {
-    badgeClass: "bg-amber-50 text-amber-800 border-amber-200",
-    barColor: "#f59e0b",
-    dotClass: "bg-amber-400",
+    badgeClass: "bg-amber-50 text-amber-700 border-amber-100",
+    barColor: "#f5d79a",
+    dotClass: "bg-amber-200",
     textClass: "text-amber-700",
   },
   Reparing: {
-    badgeClass: "bg-purple-50 text-purple-800 border-purple-200",
-    barColor: "#a855f7",
-    dotClass: "bg-purple-400",
+    badgeClass: "bg-purple-50 text-purple-700 border-purple-100",
+    barColor: "#d6c5ee",
+    dotClass: "bg-purple-200",
     textClass: "text-purple-700",
   },
   Suspended: {
-    badgeClass: "bg-rose-50 text-rose-800 border-rose-200",
-    barColor: "#ef4444",
-    dotClass: "bg-rose-400",
+    badgeClass: "bg-rose-50 text-rose-700 border-rose-100",
+    barColor: "#f6c3c9",
+    dotClass: "bg-rose-200",
     textClass: "text-rose-700",
   },
   default: {
-    badgeClass: "bg-slate-50 text-slate-800 border-slate-200",
-    barColor: "#94a3b8",
-    dotClass: "bg-slate-400",
+    badgeClass: "bg-slate-50 text-slate-700 border-slate-100",
+    barColor: "#c3cfdf",
+    dotClass: "bg-slate-200",
     textClass: "text-slate-700",
   },
 };
@@ -205,8 +205,8 @@ function MatrixTable({
                 </TableHead>
               ))}
               <TableHead className="text-base font-semibold">Total</TableHead>
-              <TableHead className="text-base font-semibold">Opened customer claims</TableHead>
-              <TableHead className="text-base font-semibold">Status mix</TableHead>
+              <TableHead className="text-base font-semibold w-28">Opened customer claims</TableHead>
+              <TableHead className="text-base font-semibold w-[340px]">Status mix</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -231,10 +231,10 @@ function MatrixTable({
                     {total}
                   </Badge>
                 </TableCell>
-                <TableCell className="font-semibold text-lg">
+                <TableCell className="font-semibold text-lg w-28">
                   {row.type === "created-age" ? uniqueOpenNames ?? 0 : <span className="text-muted-foreground">-</span>}
                 </TableCell>
-                <TableCell className="align-top">
+                <TableCell className="align-top w-[340px]">
                   <StatusDistributionBar
                     segments={statusBarTemplate.map(({ status, palette }) => ({
                       status,
@@ -347,30 +347,21 @@ function StatusDistributionBar({
 
   if (total === 0) {
     return (
-      <div className="flex h-14 min-w-[240px] items-center justify-center rounded-lg border bg-muted/30 text-sm text-muted-foreground">
+      <div className="flex h-14 min-w-[320px] items-center justify-center rounded-lg border bg-muted/30 text-sm text-muted-foreground">
         No status data
       </div>
     );
   }
 
   return (
-    <div className="space-y-2 min-w-[240px]">
-      <div className="flex h-14 overflow-hidden rounded-xl border bg-white shadow-inner">
+    <div className="min-w-[320px]">
+      <div className="flex h-16 overflow-hidden rounded-xl border bg-white shadow-inner">
         {segments.map((segment) => (
           <div
             key={segment.status}
             style={{ width: `${(segment.count / total) * 100}%`, backgroundColor: segment.color }}
             className="h-full transition-all"
           />
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-        {segments.map((segment) => (
-          <div key={`${segment.status}-legend`} className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: segment.color }} />
-            <span className="truncate">{segment.status}</span>
-            <span className="text-[11px] text-foreground/70 font-semibold">{segment.count}</span>
-          </div>
         ))}
       </div>
     </div>
