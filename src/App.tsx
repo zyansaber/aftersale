@@ -13,7 +13,7 @@ import AdminPage from "@/pages/AdminPage";
 import DataExplorerPage from "@/pages/DataExplorerPage";
 import TicketsPage from "@/pages/TicketsPage";
 import MappingPage from "@/pages/MappingPage";
-import AftercareGuidesPage from "@/pages/AftercareGuidesPage";
+import AftersaleGuidesPage from "@/pages/AftersaleGuidesPage";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +39,8 @@ const AppShell = () => {
           <Route path="/repair-insights/:repairId" element={<RepairInsightPage />} />
           <Route path="/claim-vs-closed" element={<ClaimVsClosedPage />} />
           <Route path="/aged-claim-report" element={<AgedClaimReportPage />} />
-          <Route path="/aftercare-guides" element={<AftercareGuidesPage />} />
+          <Route path="/aftersale-guides" element={<AftersaleGuidesPage />} />
+          <Route path="/aftercare-guides" element={<Navigate to="/aftersale-guides" replace />} />
           <Route path="/data-explorer" element={<DataExplorerPage />} />
           <Route path="/employees" element={<EmployeesPage />} />
           <Route path="/repairs" element={<RepairsPage />} />

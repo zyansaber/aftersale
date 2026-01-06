@@ -40,16 +40,17 @@ function parseTicketDate(raw: string) {
 }
 
 export default function EmployeesPage() {
-  const { data, isLoading, error } = useVisibleTickets({ applyEmployeeVisibility: false });
+  const { data, isLoading, error } = useVisibleTickets({ applyEmployeeVisibility: true });
   const mappingQuery = useTicketStatusMapping();
   const [hideClosed, setHideClosed] = useState(true);
+  const [firstLevelStatusFilter, setFirstLevelStatusFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [statusDialog, setStatusDialog] = useState<{ status: string; tickets: TicketWithMeta[] } | null>(null);
   const [ageDialog, setAgeDialog] = useState<{ range: string; tickets: TicketWithMeta[] } | null>(null);
 
-  const filteredTickets = useMemo(() => {
+  const ticketsAfterClosedFilter = useMemo(() => {
     if (!data) return undefined;
     return hideClosed
       ? filterTicketsByFirstLevelStatus(data, mappingQuery.data, {
@@ -57,6 +58,36 @@ export default function EmployeesPage() {
         })
       : data;
   }, [data, hideClosed, mappingQuery.data]);
+
+  const filteredTickets = useMemo(() => {
+    if (!ticketsAfterClosedFilter) return undefined;
+    if (firstLevelStatusFilter === "all") return ticketsAfterClosedFilter;
+
+    const filtered = Object.entries(ticketsAfterClosedFilter.c4cTickets_test.tickets).reduce(
+      (acc, [ticketId, ticketEntry]) => {
+        const mappingEntry =
+          mappingQuery.data?.[ticketEntry.ticket.TicketStatus] ??
+          mappingQuery.data?.[ticketEntry.ticket.TicketStatusText];
+        const firstLevelStatus =
+          mappingEntry?.firstLevelStatus?.trim() ||
+          mappingEntry?.ticketStatusText ||
+          ticketEntry.ticket.TicketStatusText;
+
+        if (firstLevelStatus.toLowerCase() === firstLevelStatusFilter.toLowerCase()) {
+          acc[ticketId] = ticketEntry;
+        }
+
+        return acc;
+      },
+      {} as TicketData["c4cTickets_test"]["tickets"]
+    );
+
+    return {
+      c4cTickets_test: {
+        tickets: filtered,
+      },
+    };
+  }, [firstLevelStatusFilter, mappingQuery.data, ticketsAfterClosedFilter]);
 
   const employees = useMemo<EmployeeStats[]>(() => {
     if (!filteredTickets) return [];
@@ -80,6 +111,18 @@ export default function EmployeesPage() {
     });
     return Array.from(statuses).sort();
   }, [employees]);
+
+  const firstLevelStatusOptions = useMemo(() => {
+    if (!mappingQuery.data) return [];
+    const statuses = new Set<string>();
+    Object.values(mappingQuery.data).forEach((entry) => {
+      const normalized = entry.firstLevelStatus?.trim();
+      if (normalized) {
+        statuses.add(normalized);
+      }
+    });
+    return Array.from(statuses).sort((a, b) => a.localeCompare(b));
+  }, [mappingQuery.data]);
 
   const workloadData = useMemo(() => {
     return employees.map((emp) => {
@@ -236,7 +279,7 @@ export default function EmployeesPage() {
               Hide tickets with first-level status “Closed” (mapping)
             </Label>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="employee-search">Search employees</Label>
               <div className="relative">
@@ -278,6 +321,26 @@ export default function EmployeesPage() {
                 <SelectContent>
                   <SelectItem value="all">All statuses</SelectItem>
                   {statusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="first-level-status-select">Filter by first-level status</Label>
+              <Select
+                value={firstLevelStatusFilter}
+                onValueChange={(value) => setFirstLevelStatusFilter(value)}
+                disabled={mappingQuery.isLoading}
+              >
+                <SelectTrigger id="first-level-status-select">
+                  <SelectValue placeholder="All first-level statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All first-level statuses</SelectItem>
+                  {firstLevelStatusOptions.map((status) => (
                     <SelectItem key={status} value={status}>
                       {status}
                     </SelectItem>
