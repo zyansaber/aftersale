@@ -17,6 +17,7 @@ import { useTicketData } from "@/hooks/useTicketData";
 import { PaginationControls } from "@/components/PaginationControls";
 import { PageLoader } from "@/components/PageLoader";
 import { FileText, RefreshCw, Search } from "lucide-react";
+import { getNormalizedSerialId } from "@/utils/dataParser";
 
 type EnrichedTicket = {
   id: string;
@@ -61,6 +62,7 @@ export default function DataExplorerPage() {
       const createdOn = entry.ticket.CreatedOn?.trim?.() ?? entry.ticket.CreatedOn;
       const createdDate = new Date(createdOn);
       const normalizedCreated = Number.isNaN(createdDate.getTime()) ? null : createdDate;
+      const normalizedSerialId = getNormalizedSerialId(entry);
 
       return {
         id: normalizeValue(entry.ticket.TicketID, "unknown"),
@@ -69,7 +71,7 @@ export default function DataExplorerPage() {
         type: normalizeValue(entry.ticket.TicketTypeText, "Unknown"),
         createdOn: createdOn ?? "",
         createdDate: normalizedCreated,
-        chassis: normalizeValue(entry.ticket.ChassisNumber, ""),
+        chassis: normalizedSerialId,
         dealerId: normalizeValue(dealer?.InvolvedPartyBusinessPartnerID, "unknown"),
         dealerName: normalizeValue(dealer?.RepairerBusinessNameID, "Unknown dealer"),
         repairId: normalizeValue(repair?.InvolvedPartyBusinessPartnerID, "no-repair"),

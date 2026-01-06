@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { DealerStats, TicketData } from "@/types/ticket";
-import { analyzeDealers } from "@/utils/dataParser";
+import { DealerStats, TicketData, TicketEntry } from "@/types/ticket";
+import { analyzeDealers, getNormalizedSerialId } from "@/utils/dataParser";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import StatCard from "@/components/StatCard";
 import { ArrowLeft, Clock, FileText, TrendingUp } from "lucide-react";
@@ -22,8 +22,6 @@ import { Button } from "@/components/ui/button";
 import { formatTimeBreakdown } from "@/utils/timeParser";
 import { Input } from "@/components/ui/input";
 import { PageLoader } from "@/components/PageLoader";
-
-type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
 
 export default function DealerInsightPage() {
   const { dealerId } = useParams<{ dealerId: string }>();
@@ -73,7 +71,7 @@ export default function DealerInsightPage() {
   const chassisDuplicateDistribution = useMemo(() => {
     const counts: Record<string, number> = {};
     dealerTickets.forEach((ticketEntry) => {
-      const chassis = (ticketEntry.ticket.ChassisNumber || "").trim();
+      const chassis = getNormalizedSerialId(ticketEntry);
       if (!chassis) return;
       counts[chassis] = (counts[chassis] || 0) + 1;
     });

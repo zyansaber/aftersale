@@ -7,11 +7,10 @@ import {
   EntityVisibilityCategory,
   TicketStatusMapping,
   TicketStatusMappingEntry,
+  TicketEntry,
 } from "@/types/ticket";
 import { parseTimeConsumed, averageTimeBreakdown } from "./timeParser";
 import { database, ref, get, set } from "@/lib/firebase";
-
-type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
 
 const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   dealerships: {},
@@ -71,6 +70,11 @@ function getRepairInfo(ticketEntry: TicketEntry) {
     repairId,
     repairName,
   };
+}
+
+export function getNormalizedSerialId(ticketEntry: TicketEntry) {
+  const raw = (ticketEntry.SerialID ?? ticketEntry.ticket.ChassisNumber ?? "").trim();
+  return raw.replace(/-/g, "");
 }
 
 export async function loadTicketData(): Promise<TicketData> {
@@ -261,8 +265,9 @@ export function analyzeDealers(data: TicketData): DealerStats[] {
     stats.ticketsByType[ticket.TicketTypeText] =
       (stats.ticketsByType[ticket.TicketTypeText] || 0) + 1;
 
-    if (ticket.ChassisNumber && !stats.chassisNumbers.includes(ticket.ChassisNumber)) {
-      stats.chassisNumbers.push(ticket.ChassisNumber);
+    const serialId = getNormalizedSerialId(ticketEntry);
+    if (serialId && !stats.chassisNumbers.includes(serialId)) {
+      stats.chassisNumbers.push(serialId);
     }
   });
 
@@ -395,7 +400,7 @@ export function analyzeRepairs(data: TicketData): RepairStats[] {
 
     const ticket = ticketEntry.ticket;
     const cost = parseFloat(ticket.AmountIncludingTax) || 0;
-    const chassisNumber = (ticket.ChassisNumber || "").trim();
+    const chassisNumber = getNormalizedSerialId(ticketEntry);
 
     stats.totalCost += cost;
     stats.ticketCount++;
