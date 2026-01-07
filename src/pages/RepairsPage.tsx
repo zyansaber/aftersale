@@ -163,6 +163,27 @@ export default function RepairsPage() {
     return parse(raw, "dd/MM/yyyy", new Date());
   };
 
+  const latestRepairNames = useMemo(() => {
+    const nameMap = new Map<string, { name: string; timestamp: number }>();
+    const isMeaningfulName = (name: string) => name && name !== "No Repair Shop Assigned";
+
+    tickets.forEach((ticketEntry) => {
+      const repair = ticketEntry.roles?.["43"];
+      const repairId = repair?.InvolvedPartyBusinessPartnerID?.trim() || "no-repair";
+      const repairName = repair?.RepairerBusinessNameID?.trim() || "";
+      if (!isMeaningfulName(repairName)) return;
+
+      const created = parseTicketDate(ticketEntry.ticket.CreatedOn);
+      const timestamp = Number.isNaN(created.getTime()) ? 0 : created.getTime();
+      const existing = nameMap.get(repairId);
+      if (!existing || timestamp >= existing.timestamp) {
+        nameMap.set(repairId, { name: repairName, timestamp });
+      }
+    });
+
+    return nameMap;
+  }, [tickets]);
+
   const ticketsFrom2025 = useMemo(() => {
     const start = new Date(2025, 0, 1);
     return tickets.filter((ticketEntry) => {
@@ -177,7 +198,12 @@ export default function RepairsPage() {
     ticketsFrom2025.forEach((ticketEntry) => {
       const repair = ticketEntry.roles?.["43"];
       const repairId = repair?.InvolvedPartyBusinessPartnerID?.trim() || "no-repair";
-      const repairName = repair?.RepairerBusinessNameID?.trim() || "No Repair Shop Assigned";
+      const rawName = repair?.RepairerBusinessNameID?.trim() || "";
+      const fallbackName = latestRepairNames.get(repairId)?.name;
+      const repairName =
+        rawName && rawName !== "No Repair Shop Assigned"
+          ? rawName
+          : fallbackName ?? "No Repair Shop Assigned";
       const existing = repairMap.get(repairId) ?? {
         repairId,
         repairName,
@@ -190,7 +216,39 @@ export default function RepairsPage() {
     return Array.from(repairMap.values())
       .sort((a, b) => b.ticketCount - a.ticketCount)
       .slice(0, 10);
-  }, [ticketsFrom2025]);
+  }, [latestRepairNames, ticketsFrom2025]);
+
+  const renderPieLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    percent,
+  }: {
+    cx: number;
+    cy: number;
+    midAngle: number;
+    innerRadius: number;
+    outerRadius: number;
+    percent: number;
+  }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
+    const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+    const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        className="text-xs font-semibold"
+      >
+        {(percent * 100).toFixed(0)}%
+      </text>
+    );
+  };
 
   useEffect(() => {
     if (!topRepairsByTickets2025.length) {
@@ -409,15 +467,16 @@ export default function RepairsPage() {
           </CardHeader>
           <CardContent>
             <div className="mx-auto w-full max-w-[16rem]">
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart margin={{ top: 8, right: 16, bottom: 24, left: 16 }}>
                   <Pie
                     data={costRangeData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    label={renderPieLabel}
                     outerRadius={80}
+                    innerRadius={30}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -426,6 +485,7 @@ export default function RepairsPage() {
                     ))}
                   </Pie>
                   <Tooltip />
+                  <Legend verticalAlign="bottom" align="center" iconType="circle" />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -507,27 +567,35 @@ export default function RepairsPage() {
               <p className="text-xs text-muted-foreground">
                 Select a repair shop to update the 2025 trend lines.
               </p>
-              <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
-                {topRepairsByTickets2025.map((repair, index) => (
-                  <button
-                    key={repair.repairId}
-                    type="button"
-                    onClick={() => setSelectedTrendRepairId(repair.repairId)}
-                    className={`w-full rounded-md border px-3 py-2 text-left text-sm transition ${
-                      selectedTrendRepairId === repair.repairId
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border hover:bg-muted/60"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="truncate font-medium">
-                        {index + 1}. {repair.repairName}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{repair.ticketCount}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">ID: {repair.repairId}</p>
-                  </button>
-                ))}
+              <div className="mt-3 max-h-72 overflow-y-auto pr-1">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Repair shop</TableHead>
+                      <TableHead className="text-xs">Shop ID</TableHead>
+                      <TableHead className="text-right text-xs">Tickets</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {topRepairsByTickets2025.map((repair, index) => (
+                      <TableRow
+                        key={repair.repairId}
+                        className={`cursor-pointer text-xs transition ${
+                          selectedTrendRepairId === repair.repairId
+                            ? "bg-primary/10 text-primary"
+                            : "hover:bg-muted/60"
+                        }`}
+                        onClick={() => setSelectedTrendRepairId(repair.repairId)}
+                      >
+                        <TableCell className="max-w-[120px] truncate font-medium">
+                          {index + 1}. {repair.repairName}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{repair.repairId}</TableCell>
+                        <TableCell className="text-right">{repair.ticketCount}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </div>
           </CardContent>
