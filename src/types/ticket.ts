@@ -25,6 +25,7 @@ export interface Ticket {
   ERPPurchaseOrder: string;
   HubSpotID: string;
   Responded: boolean;
+  SerialID?: string;
   ServiceRequesterEmail: string;
   TicketID: string;
   TicketName: string;
