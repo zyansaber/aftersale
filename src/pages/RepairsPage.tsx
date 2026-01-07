@@ -31,6 +31,20 @@ export default function RepairsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedRepairId, setSelectedRepairId] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<
+    | "repairName"
+    | "repairId"
+    | "totalCost"
+    | "avgCost"
+    | "ticketCount"
+    | "chassisTicketCount"
+    | "uniqueChassisCount"
+    | "uniqueChassisRatio"
+    | "lowCost"
+    | "mediumCost"
+    | "highCost"
+  >("ticketCount");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const repairs = useMemo<RepairStats[]>(() => {
     if (!data) return [];
@@ -52,6 +66,52 @@ export default function RepairsPage() {
       return matchesId && matchesSearch;
     });
   }, [repairs, search, selectedRepairId]);
+
+  const sortedRepairs = useMemo(() => {
+    const sorted = [...filteredRepairs];
+    sorted.sort((a, b) => {
+      const getValue = (repair: RepairStats) => {
+        switch (sortKey) {
+          case "repairName":
+            return repair.repairName;
+          case "repairId":
+            return repair.repairId;
+          case "totalCost":
+            return repair.totalCost;
+          case "avgCost":
+            return repair.avgCost;
+          case "ticketCount":
+            return repair.ticketCount;
+          case "chassisTicketCount":
+            return repair.chassisTicketCount;
+          case "uniqueChassisCount":
+            return repair.uniqueChassisCount;
+          case "uniqueChassisRatio":
+            return repair.uniqueChassisRatio;
+          case "lowCost":
+            return repair.costRanges.low;
+          case "mediumCost":
+            return repair.costRanges.medium;
+          case "highCost":
+            return repair.costRanges.high;
+          default:
+            return repair.ticketCount;
+        }
+      };
+
+      const valueA = getValue(a);
+      const valueB = getValue(b);
+
+      if (typeof valueA === "string" && typeof valueB === "string") {
+        const result = valueA.localeCompare(valueB);
+        return sortDirection === "asc" ? result : -result;
+      }
+
+      const diff = Number(valueA) - Number(valueB);
+      return sortDirection === "asc" ? diff : -diff;
+    });
+    return sorted;
+  }, [filteredRepairs, sortDirection, sortKey]);
 
   const costRangeData = useMemo(
     () => [
@@ -83,8 +143,8 @@ export default function RepairsPage() {
 
   const paginatedRepairs = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
-    return filteredRepairs.slice(start, start + PAGE_SIZE);
-  }, [page, filteredRepairs]);
+    return sortedRepairs.slice(start, start + PAGE_SIZE);
+  }, [page, sortedRepairs]);
 
   const repairOptions = useMemo(
     () => repairs.map((repair) => ({ id: repair.repairId, name: repair.repairName })),
@@ -259,21 +319,233 @@ export default function RepairsPage() {
           <CardTitle>Repair Shop Details</CardTitle>
         </CardHeader>
         <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            Click a header to sort across all repair shops. Default ordering is by ticket volume.
+          </p>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Repair Shop Name</TableHead>
-                <TableHead>Shop ID</TableHead>
-                <TableHead className="text-right">Total Cost</TableHead>
-                <TableHead className="text-right">Avg Cost</TableHead>
-                <TableHead className="text-right">Tickets</TableHead>
-                <TableHead className="text-right">Chassis Tickets</TableHead>
-                <TableHead className="text-right">Unique Chassis</TableHead>
-                <TableHead className="text-right">Chassis Ticket %</TableHead>
-                <TableHead className="text-right">Unique Chassis %</TableHead>
-                <TableHead className="text-right">Low Cost</TableHead>
-                <TableHead className="text-right">Medium Cost</TableHead>
-                <TableHead className="text-right">High Cost</TableHead>
+                <TableHead>
+                  <button
+                    type="button"
+                    className="flex items-center gap-2"
+                    onClick={() => {
+                      if (sortKey === "repairName") {
+                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortKey("repairName");
+                        setSortDirection("asc");
+                      }
+                    }}
+                  >
+                    Repair Shop Name
+                    <span className="text-xs text-muted-foreground">
+                      {sortKey === "repairName" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                    </span>
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button
+                    type="button"
+                    className="flex items-center gap-2"
+                    onClick={() => {
+                      if (sortKey === "repairId") {
+                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortKey("repairId");
+                        setSortDirection("asc");
+                      }
+                    }}
+                  >
+                    Shop ID
+                    <span className="text-xs text-muted-foreground">
+                      {sortKey === "repairId" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                    </span>
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-2"
+                    onClick={() => {
+                      if (sortKey === "totalCost") {
+                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortKey("totalCost");
+                        setSortDirection("desc");
+                      }
+                    }}
+                  >
+                    Total Cost
+                    <span className="text-xs text-muted-foreground">
+                      {sortKey === "totalCost" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                    </span>
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-2"
+                    onClick={() => {
+                      if (sortKey === "avgCost") {
+                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortKey("avgCost");
+                        setSortDirection("desc");
+                      }
+                    }}
+                  >
+                    Avg Cost
+                    <span className="text-xs text-muted-foreground">
+                      {sortKey === "avgCost" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                    </span>
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-2"
+                    onClick={() => {
+                      if (sortKey === "ticketCount") {
+                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortKey("ticketCount");
+                        setSortDirection("desc");
+                      }
+                    }}
+                  >
+                    Tickets
+                    <span className="text-xs text-muted-foreground">
+                      {sortKey === "ticketCount" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                    </span>
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-2"
+                    onClick={() => {
+                      if (sortKey === "chassisTicketCount") {
+                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortKey("chassisTicketCount");
+                        setSortDirection("desc");
+                      }
+                    }}
+                  >
+                    Chassis Tickets
+                    <span className="text-xs text-muted-foreground">
+                      {sortKey === "chassisTicketCount"
+                        ? sortDirection === "asc"
+                          ? "↑"
+                          : "↓"
+                        : "↕"}
+                    </span>
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-2"
+                    onClick={() => {
+                      if (sortKey === "uniqueChassisCount") {
+                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortKey("uniqueChassisCount");
+                        setSortDirection("desc");
+                      }
+                    }}
+                  >
+                    Unique Chassis
+                    <span className="text-xs text-muted-foreground">
+                      {sortKey === "uniqueChassisCount"
+                        ? sortDirection === "asc"
+                          ? "↑"
+                          : "↓"
+                        : "↕"}
+                    </span>
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-2"
+                    onClick={() => {
+                      if (sortKey === "uniqueChassisRatio") {
+                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortKey("uniqueChassisRatio");
+                        setSortDirection("desc");
+                      }
+                    }}
+                  >
+                    Unique Chassis %
+                    <span className="text-xs text-muted-foreground">
+                      {sortKey === "uniqueChassisRatio"
+                        ? sortDirection === "asc"
+                          ? "↑"
+                          : "↓"
+                        : "↕"}
+                    </span>
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-2"
+                    onClick={() => {
+                      if (sortKey === "lowCost") {
+                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortKey("lowCost");
+                        setSortDirection("desc");
+                      }
+                    }}
+                  >
+                    Low Cost
+                    <span className="text-xs text-muted-foreground">
+                      {sortKey === "lowCost" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                    </span>
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-2"
+                    onClick={() => {
+                      if (sortKey === "mediumCost") {
+                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortKey("mediumCost");
+                        setSortDirection("desc");
+                      }
+                    }}
+                  >
+                    Medium Cost
+                    <span className="text-xs text-muted-foreground">
+                      {sortKey === "mediumCost" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                    </span>
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-2"
+                    onClick={() => {
+                      if (sortKey === "highCost") {
+                        setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+                      } else {
+                        setSortKey("highCost");
+                        setSortDirection("desc");
+                      }
+                    }}
+                  >
+                    High Cost
+                    <span className="text-xs text-muted-foreground">
+                      {sortKey === "highCost" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+                    </span>
+                  </button>
+                </TableHead>
                 <TableHead className="text-right">Insights</TableHead>
               </TableRow>
             </TableHeader>
@@ -297,9 +569,6 @@ export default function RepairsPage() {
                   <TableCell className="text-right">{repair.ticketCount}</TableCell>
                   <TableCell className="text-right">{repair.chassisTicketCount}</TableCell>
                   <TableCell className="text-right">{repair.uniqueChassisCount}</TableCell>
-                  <TableCell className="text-right">
-                    {(repair.chassisTicketRatio * 100).toFixed(1)}%
-                  </TableCell>
                   <TableCell className="text-right">
                     {(repair.uniqueChassisRatio * 100).toFixed(1)}%
                   </TableCell>
@@ -332,7 +601,7 @@ export default function RepairsPage() {
       </Card>
 
       <PaginationControls
-        totalItems={repairs.length}
+        totalItems={filteredRepairs.length}
         pageSize={PAGE_SIZE}
         page={page}
         onPageChange={setPage}
