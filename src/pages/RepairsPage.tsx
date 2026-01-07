@@ -465,18 +465,18 @@ export default function RepairsPage() {
                 : "Based on current filters."}
             </p>
           </CardHeader>
-          <CardContent>
-            <div className="mx-auto w-full max-w-[16rem]">
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart margin={{ top: 8, right: 16, bottom: 24, left: 16 }}>
+          <CardContent className="flex justify-center">
+            <div className="mx-auto w-full max-w-[20rem]">
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart margin={{ top: 8, right: 16, bottom: 40, left: 16 }}>
                   <Pie
                     data={costRangeData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
                     label={renderPieLabel}
-                    outerRadius={80}
-                    innerRadius={30}
+                    outerRadius={110}
+                    innerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -485,7 +485,13 @@ export default function RepairsPage() {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend verticalAlign="bottom" align="center" iconType="circle" />
+                  <Legend
+                    verticalAlign="bottom"
+                    align="center"
+                    iconType="circle"
+                    layout="horizontal"
+                    wrapperStyle={{ paddingTop: 12 }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -562,7 +568,7 @@ export default function RepairsPage() {
                 </div>
               )}
             </div>
-            <div className="w-full lg:w-64">
+            <div className="w-full lg:w-80">
               <p className="text-sm font-medium">Top 10 repairs by ticket count</p>
               <p className="text-xs text-muted-foreground">
                 Select a repair shop to update the 2025 trend lines.
@@ -587,7 +593,7 @@ export default function RepairsPage() {
                         }`}
                         onClick={() => setSelectedTrendRepairId(repair.repairId)}
                       >
-                        <TableCell className="max-w-[120px] truncate font-medium">
+                        <TableCell className="max-w-none whitespace-normal font-medium">
                           {index + 1}. {repair.repairName}
                         </TableCell>
                         <TableCell className="text-muted-foreground">{repair.repairId}</TableCell>
