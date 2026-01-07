@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, CheckCircle2, Clock, TrendingUp } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, Clock, TrendingUp } from "lucide-react";
 import {
   Bar,
   CartesianGrid,
@@ -25,14 +25,16 @@ import {
 } from "date-fns";
 import StatCard from "@/components/StatCard";
 import { TicketData } from "@/types/ticket";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
 
@@ -73,6 +75,7 @@ const END_MONTH = endOfMonth(new Date());
 const START_MONTH = startOfMonth(new Date(2025, 0, 1));
 const RECENT_WINDOW_MONTHS = 3;
 const RECENT_START_MONTH = startOfMonth(addMonths(END_MONTH, -(RECENT_WINDOW_MONTHS - 1)));
+const ALL_AVERAGE_ID = "all-average";
 const CHART_COLORS = {
   createdStroke: "#6fa8dc",
   createdArea: "rgba(111, 168, 220, 0.22)",
@@ -82,6 +85,16 @@ const CHART_COLORS = {
   createdBar: "#9cc5f1",
   completedBar: "#8fd5b5",
 };
+const EMPLOYEE_LINE_COLORS = [
+  "#2563eb",
+  "#16a34a",
+  "#f97316",
+  "#a855f7",
+  "#0ea5e9",
+  "#db2777",
+  "#e11d48",
+  "#22c55e",
+];
 
 function parseTicketDate(raw: string) {
   if (!raw) return new Date("");
@@ -120,7 +133,7 @@ function buildMonthSkeleton() {
 }
 
 export default function ClaimVsClosedPage() {
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([ALL_AVERAGE_ID]);
   const { data, isLoading, error } = useVisibleTickets({
     applyEmployeeVisibility: true,
     applyRepairVisibility: false,
@@ -160,14 +173,19 @@ export default function ClaimVsClosedPage() {
     });
   }, [data]);
 
+  const selectedEmployeeFilterIds = useMemo(
+    () => selectedEmployeeIds.filter((employeeId) => employeeId !== ALL_AVERAGE_ID),
+    [selectedEmployeeIds]
+  );
+
   const scopedData = useMemo<TicketData | undefined>(() => {
     if (!data) return undefined;
-    if (selectedEmployeeId === "all") return data;
+    if (selectedEmployeeFilterIds.length === 0) return data;
 
     const filteredTickets = Object.entries(data.c4cTickets_test.tickets).reduce(
       (acc, [ticketId, ticketEntry]) => {
         const { employeeId } = getEmployeeDetails(ticketEntry);
-        if (employeeId === selectedEmployeeId) {
+        if (selectedEmployeeFilterIds.includes(employeeId)) {
           acc[ticketId] = ticketEntry;
         }
         return acc;
@@ -180,7 +198,7 @@ export default function ClaimVsClosedPage() {
         tickets: filteredTickets,
       },
     } satisfies TicketData;
-  }, [data, selectedEmployeeId]);
+  }, [data, selectedEmployeeFilterIds]);
 
   const { comparisonData, totalCreated, totalCompleted, averageHoursAcrossRange, recentCreated, recentCompleted } =
     useMemo(() => {
@@ -269,23 +287,88 @@ export default function ClaimVsClosedPage() {
     };
   }, [months, scopedData]);
 
-  const dailyAverageTrend = useMemo<DailyAverageRow[]>(() => {
-    return months.map((month) => {
-      const matchingComparison = comparisonData.find((row) => row.month === month.label);
-      const createdDailyAvg = matchingComparison
-        ? Number((matchingComparison.created / month.daysInMonth).toFixed(2))
-        : 0;
-      const completedDailyAvg = matchingComparison
-        ? Number((matchingComparison.completed / month.daysInMonth).toFixed(2))
-        : 0;
+  const overallDailyTrend = useMemo<DailyAverageRow[]>(() => {
+    if (!data) return [];
 
+    const buckets = new Map<string, MonthBucket>(
+      months.map((month) => [month.key, { createdCount: 0, completedCount: 0, totalMinutes: 0 }])
+    );
+
+    Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
+      const created = parseTicketDate(ticketEntry.ticket.CreatedOn);
+      if (Number.isNaN(created.getTime())) return;
+
+      const createdMonth = startOfMonth(created);
+      const createdKey = format(createdMonth, "yyyy-MM");
+      if (createdMonth >= START_MONTH && createdMonth <= END_MONTH && buckets.has(createdKey)) {
+        const bucket = buckets.get(createdKey)!;
+        bucket.createdCount += 1;
+      }
+
+      const consumed = parseTimeConsumed(ticketEntry.ticket.Z1Z8TimeConsumed);
+      if (consumed.totalMinutes <= 0) return;
+
+      const completionDate = new Date(created.getTime() + consumed.totalMinutes * 60 * 1000);
+      if (Number.isNaN(completionDate.getTime())) return;
+
+      const completionMonth = startOfMonth(completionDate);
+      const completionKey = format(completionMonth, "yyyy-MM");
+      if (completionMonth < START_MONTH || completionMonth > END_MONTH || !buckets.has(completionKey)) return;
+
+      const bucket = buckets.get(completionKey)!;
+      bucket.completedCount += 1;
+      bucket.totalMinutes += consumed.totalMinutes;
+    });
+
+    return months.map((month) => {
+      const bucket = buckets.get(month.key)!;
       return {
         month: month.label,
-        createdDailyAvg,
-        completedDailyAvg,
+        createdDailyAvg: Number((bucket.createdCount / month.daysInMonth).toFixed(2)),
+        completedDailyAvg: Number((bucket.completedCount / month.daysInMonth).toFixed(2)),
       };
     });
-  }, [comparisonData, months]);
+  }, [data, months]);
+
+  const employeeCompletionTrend = useMemo(() => {
+    if (!data) return new Map<string, DailyAverageRow[]>();
+
+    const completionCounts = new Map<string, Map<string, number>>();
+
+    Object.values(data.c4cTickets_test.tickets).forEach((ticketEntry) => {
+      const consumed = parseTimeConsumed(ticketEntry.ticket.Z1Z8TimeConsumed);
+      if (consumed.totalMinutes <= 0) return;
+
+      const created = parseTicketDate(ticketEntry.ticket.CreatedOn);
+      if (Number.isNaN(created.getTime())) return;
+
+      const completionDate = new Date(created.getTime() + consumed.totalMinutes * 60 * 1000);
+      if (Number.isNaN(completionDate.getTime())) return;
+
+      const completionMonth = startOfMonth(completionDate);
+      const completionKey = format(completionMonth, "yyyy-MM");
+      if (completionMonth < START_MONTH || completionMonth > END_MONTH) return;
+
+      const { employeeId } = getEmployeeDetails(ticketEntry);
+      if (!completionCounts.has(employeeId)) {
+        completionCounts.set(employeeId, new Map());
+      }
+
+      const monthCounts = completionCounts.get(employeeId)!;
+      monthCounts.set(completionKey, (monthCounts.get(completionKey) ?? 0) + 1);
+    });
+
+    return new Map(
+      Array.from(completionCounts.entries()).map(([employeeId, monthCounts]) => [
+        employeeId,
+        months.map((month) => ({
+          month: month.label,
+          createdDailyAvg: 0,
+          completedDailyAvg: Number(((monthCounts.get(month.key) ?? 0) / month.daysInMonth).toFixed(2)),
+        })),
+      ])
+    );
+  }, [data, months]);
 
   const employeeCompletionCards = useMemo<EmployeeCompletionCard[]>(() => {
     if (!scopedData) return [];
@@ -323,17 +406,55 @@ export default function ClaimVsClosedPage() {
       .sort((a, b) => b.completedCount - a.completedCount || a.employeeName.localeCompare(b.employeeName));
   }, [scopedData]);
 
-  const latestCreatedDailyAvg = useMemo(() => {
-    const nonZero = dailyAverageTrend.filter((row) => row.createdDailyAvg > 0);
-    return nonZero.length > 0 ? nonZero[nonZero.length - 1].createdDailyAvg : 0;
-  }, [dailyAverageTrend]);
+  const includeAllAverage = selectedEmployeeIds.includes(ALL_AVERAGE_ID);
+  const showCreatedLine = includeAllAverage && selectedEmployeeFilterIds.length === 0;
 
-  const latestCompletedDailyAvg = useMemo(() => {
-    const nonZero = dailyAverageTrend.filter((row) => row.completedDailyAvg > 0);
-    return nonZero.length > 0 ? nonZero[nonZero.length - 1].completedDailyAvg : 0;
-  }, [dailyAverageTrend]);
+  const employeeNameLookup = useMemo(
+    () => new Map(employeeOptions.map((employee) => [employee.employeeId, employee.employeeName])),
+    [employeeOptions]
+  );
 
-  const showCreatedLine = selectedEmployeeId === "all";
+  const selectedEmployeeLabel = useMemo(() => {
+    if (selectedEmployeeIds.length === 0) return "Select employees";
+
+    const labels = selectedEmployeeIds.map((employeeId) =>
+      employeeId === ALL_AVERAGE_ID ? "All average" : employeeNameLookup.get(employeeId) ?? employeeId
+    );
+
+    if (labels.length <= 2) return labels.join(", ");
+    return `${labels[0]} +${labels.length - 1} more`;
+  }, [employeeNameLookup, selectedEmployeeIds]);
+
+  const toggleEmployeeSelection = (employeeId: string) => {
+    setSelectedEmployeeIds((prev) => {
+      const exists = prev.includes(employeeId);
+      const next = exists ? prev.filter((id) => id !== employeeId) : [...prev, employeeId];
+      return next.length === 0 ? [ALL_AVERAGE_ID] : next;
+    });
+  };
+
+  const trendChartData = useMemo(() => {
+    const rows = months.map((month) => ({ month: month.label }) as Record<string, number | string>);
+
+    if (includeAllAverage) {
+      overallDailyTrend.forEach((row, index) => {
+        rows[index].allAverage = row.completedDailyAvg;
+        if (showCreatedLine) {
+          rows[index].createdDailyAvg = row.createdDailyAvg;
+        }
+      });
+    }
+
+    selectedEmployeeFilterIds.forEach((employeeId) => {
+      const series = employeeCompletionTrend.get(employeeId);
+      if (!series) return;
+      series.forEach((row, index) => {
+        rows[index][`employee-${employeeId}`] = row.completedDailyAvg;
+      });
+    });
+
+    return rows;
+  }, [employeeCompletionTrend, includeAllAverage, months, overallDailyTrend, selectedEmployeeFilterIds, showCreatedLine]);
 
   if (isLoading) {
     return (
@@ -382,27 +503,41 @@ export default function ClaimVsClosedPage() {
         <CardHeader>
           <CardTitle>Filters</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Scope the dataset to a single role 40 employee or keep all visible employees.
+            Choose employees to overlay in the daily trend line and scope the other charts below.
           </p>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="employee-focus">Employee focus</Label>
-            <Select value={selectedEmployeeId} onValueChange={(value) => setSelectedEmployeeId(value)}>
-              <SelectTrigger id="employee-focus">
-                <SelectValue placeholder="All employees" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All employees</SelectItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" id="employee-focus" className="w-full justify-between">
+                  <span className="truncate">{selectedEmployeeLabel}</span>
+                  <ChevronDown className="h-4 w-4 opacity-70" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-72 max-h-80 overflow-y-auto">
+                <DropdownMenuLabel>Trend lines</DropdownMenuLabel>
+                <DropdownMenuCheckboxItem
+                  checked={includeAllAverage}
+                  onCheckedChange={() => toggleEmployeeSelection(ALL_AVERAGE_ID)}
+                >
+                  All average
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
                 {employeeOptions.map((employee) => (
-                  <SelectItem key={employee.employeeId} value={employee.employeeId}>
+                  <DropdownMenuCheckboxItem
+                    key={employee.employeeId}
+                    checked={selectedEmployeeIds.includes(employee.employeeId)}
+                    onCheckedChange={() => toggleEmployeeSelection(employee.employeeId)}
+                  >
                     {employee.employeeName} ({employee.employeeId})
-                  </SelectItem>
+                  </DropdownMenuCheckboxItem>
                 ))}
-              </SelectContent>
-            </Select>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <p className="text-xs text-muted-foreground">
-              Filtering updates every chart and completion card below.
+              Select multiple employees to stack completed-per-day trends. Add All average for the overall baseline.
             </p>
           </div>
         </CardContent>
@@ -439,18 +574,17 @@ export default function ClaimVsClosedPage() {
         <CardHeader>
           <CardTitle>Average Pace per Month</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Combined view of created and completed tickets per day. Created disappears when focusing on a specific
-            employee. Latest completed pace: {latestCompletedDailyAvg} / day
-            {showCreatedLine ? `; created: ${latestCreatedDailyAvg} / day.` : "."}
+            Overlay completed-per-day trend lines for selected employees. Created per day appears only when viewing all
+            employees.
           </p>
         </CardHeader>
         <CardContent className="h-[380px]">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={dailyAverageTrend}>
+            <ComposedChart data={trendChartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis tickFormatter={(value) => `${value}`} tick={{ fontSize: 12 }} />
-              <Tooltip formatter={(value: number, name) => [`${value} / day`, name === "createdDailyAvg" ? "Created per day" : "Completed per day"]} />
+              <Tooltip formatter={(value: number, name) => [`${value} / day`, name]} />
               {showCreatedLine && (
                 <Area
                   type="monotone"
@@ -465,17 +599,35 @@ export default function ClaimVsClosedPage() {
                   <LabelList dataKey="createdDailyAvg" position="top" formatter={(value: number) => value.toFixed(2)} />
                 </Area>
               )}
-              <Line
-                type="monotone"
-                dataKey="completedDailyAvg"
-                name="Completed per day"
-                stroke={CHART_COLORS.completedStroke}
-                strokeWidth={4}
-                dot={{ r: 4, fill: CHART_COLORS.completedStroke }}
-                activeDot={{ r: 6 }}
-              >
-                <LabelList dataKey="completedDailyAvg" position="top" formatter={(value: number) => value.toFixed(2)} />
-              </Line>
+              {includeAllAverage && (
+                <Line
+                  type="monotone"
+                  dataKey="allAverage"
+                  name="All average (completed)"
+                  stroke={CHART_COLORS.completedStroke}
+                  strokeWidth={4}
+                  dot={{ r: 4, fill: CHART_COLORS.completedStroke }}
+                  activeDot={{ r: 6 }}
+                >
+                  <LabelList dataKey="allAverage" position="top" formatter={(value: number) => value.toFixed(2)} />
+                </Line>
+              )}
+              {selectedEmployeeFilterIds.map((employeeId, index) => {
+                const employeeName = employeeNameLookup.get(employeeId) ?? employeeId;
+                const color = EMPLOYEE_LINE_COLORS[index % EMPLOYEE_LINE_COLORS.length];
+                return (
+                  <Line
+                    key={employeeId}
+                    type="monotone"
+                    dataKey={`employee-${employeeId}`}
+                    name={`${employeeName} (completed)`}
+                    stroke={color}
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: color }}
+                    activeDot={{ r: 6 }}
+                  />
+                );
+              })}
             </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
