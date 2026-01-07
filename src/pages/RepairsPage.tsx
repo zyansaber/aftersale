@@ -20,9 +20,10 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  PieChart,
-  Pie,
   Cell,
+  BarChart,
+  Bar,
+  LabelList,
   LineChart,
   Line,
 } from "recharts";
@@ -155,6 +156,18 @@ export default function RepairsPage() {
     ],
     [costRangeSource]
   );
+  const costRangeTotal = useMemo(
+    () => costRangeData.reduce((sum, item) => sum + item.value, 0),
+    [costRangeData]
+  );
+  const costRangeChartData = useMemo(
+    () =>
+      costRangeData.map((item) => ({
+        ...item,
+        percent: costRangeTotal ? (item.value / costRangeTotal) * 100 : 0,
+      })),
+    [costRangeData, costRangeTotal]
+  );
 
   const parseTicketDate = (raw: string) => {
     if (!raw) return new Date("");
@@ -217,38 +230,6 @@ export default function RepairsPage() {
       .sort((a, b) => b.ticketCount - a.ticketCount)
       .slice(0, 10);
   }, [latestRepairNames, ticketsFrom2025]);
-
-  const renderPieLabel = ({
-    cx,
-    cy,
-    midAngle,
-    innerRadius,
-    outerRadius,
-    percent,
-  }: {
-    cx: number;
-    cy: number;
-    midAngle: number;
-    innerRadius: number;
-    outerRadius: number;
-    percent: number;
-  }) => {
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
-    const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
-    const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
-    return (
-      <text
-        x={x}
-        y={y}
-        fill="white"
-        textAnchor={x > cx ? "start" : "end"}
-        dominantBaseline="central"
-        className="text-xs font-semibold"
-      >
-        {(percent * 100).toFixed(0)}%
-      </text>
-    );
-  };
 
   useEffect(() => {
     if (!topRepairsByTickets2025.length) {
@@ -458,43 +439,51 @@ export default function RepairsPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>Cost Range Distribution</CardTitle>
+            <CardTitle>Cost Range Breakdown</CardTitle>
             <p className="text-sm text-muted-foreground">
               {selectedTrendRepair
                 ? `${selectedTrendRepair.repairName} (${selectedTrendRepair.ticketCount} tickets)`
                 : "Based on current filters."}
             </p>
           </CardHeader>
-          <CardContent className="flex justify-center">
-            <div className="mx-auto w-full max-w-[20rem]">
-              <ResponsiveContainer width="100%" height={320}>
-                <PieChart margin={{ top: 8, right: 16, bottom: 40, left: 16 }}>
-                  <Pie
-                    data={costRangeData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={renderPieLabel}
-                    outerRadius={110}
-                    innerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {costRangeData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend
-                    verticalAlign="bottom"
-                    align="center"
-                    iconType="circle"
-                    layout="horizontal"
-                    wrapperStyle={{ paddingTop: 12 }}
+          <CardContent>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart
+                data={costRangeChartData}
+                layout="vertical"
+                margin={{ top: 8, right: 24, bottom: 8, left: 24 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" tickLine={false} axisLine={false} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={120}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  formatter={(value: number) => {
+                    const percent = costRangeTotal
+                      ? ((value / costRangeTotal) * 100).toFixed(1)
+                      : "0.0";
+                    return [`${value} tickets (${percent}%)`, "Tickets"];
+                  }}
+                />
+                <Legend verticalAlign="bottom" iconType="circle" />
+                <Bar dataKey="value" name="Tickets" radius={[0, 8, 8, 0]}>
+                  {costRangeChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                  <LabelList
+                    dataKey="percent"
+                    position="right"
+                    formatter={(value: number) => `${value.toFixed(0)}%`}
+                    className="fill-muted-foreground text-xs"
                   />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
