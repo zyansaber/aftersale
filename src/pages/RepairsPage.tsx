@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { parse } from "date-fns";
 import { RepairStats } from "@/types/ticket";
-import { analyzeRepairs } from "@/utils/dataParser";
+import { analyzeRepairs, getNormalizedSerialId, parseAmountIncludingTax } from "@/utils/dataParser";
 import StatCard from "@/components/StatCard";
 import { Wrench, DollarSign, TrendingUp, PieChart as PieChartIcon } from "lucide-react";
 import {
@@ -12,7 +13,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+} from "recharts";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import { PaginationControls } from "@/components/PaginationControls";
 import { Button } from "@/components/ui/button";
@@ -31,6 +44,7 @@ export default function RepairsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [selectedRepairId, setSelectedRepairId] = useState<string>("all");
+  const [selectedTrendRepairId, setSelectedTrendRepairId] = useState<string>("");
   const [sortKey, setSortKey] = useState<
     | "repairName"
     | "repairId"
@@ -49,6 +63,11 @@ export default function RepairsPage() {
   const repairs = useMemo<RepairStats[]>(() => {
     if (!data) return [];
     return analyzeRepairs(data);
+  }, [data]);
+
+  const tickets = useMemo(() => {
+    if (!data) return [];
+    return Object.values(data.c4cTickets_test.tickets);
   }, [data]);
 
   useEffect(() => {
@@ -131,15 +150,120 @@ export default function RepairsPage() {
     [filteredRepairs]
   );
 
-  const topShopsData = useMemo(
-    () =>
-      filteredRepairs.slice(0, 5).map((r) => ({
-        name: r.repairName,
-        totalCost: r.totalCost,
-        avgCost: r.avgCost,
-      })),
-    [filteredRepairs]
+  const parseTicketDate = (raw: string) => {
+    if (!raw) return new Date("");
+    const isoCandidate = new Date(raw);
+    if (!Number.isNaN(isoCandidate.getTime())) return isoCandidate;
+    return parse(raw, "dd/MM/yyyy", new Date());
+  };
+
+  const ticketsFrom2025 = useMemo(() => {
+    const start = new Date(2025, 0, 1);
+    return tickets.filter((ticketEntry) => {
+      const created = parseTicketDate(ticketEntry.ticket.CreatedOn);
+      return !Number.isNaN(created.getTime()) && created >= start;
+    });
+  }, [tickets]);
+
+  const topRepairsByTickets2025 = useMemo(() => {
+    const repairMap = new Map<string, { repairId: string; repairName: string; ticketCount: number }>();
+
+    ticketsFrom2025.forEach((ticketEntry) => {
+      const repair = ticketEntry.roles?.["43"];
+      const repairId = repair?.InvolvedPartyBusinessPartnerID?.trim() || "no-repair";
+      const repairName = repair?.RepairerBusinessNameID?.trim() || "No Repair Shop Assigned";
+      const existing = repairMap.get(repairId) ?? {
+        repairId,
+        repairName,
+        ticketCount: 0,
+      };
+      existing.ticketCount += 1;
+      repairMap.set(repairId, existing);
+    });
+
+    return Array.from(repairMap.values())
+      .sort((a, b) => b.ticketCount - a.ticketCount)
+      .slice(0, 10);
+  }, [ticketsFrom2025]);
+
+  useEffect(() => {
+    if (!topRepairsByTickets2025.length) {
+      setSelectedTrendRepairId("");
+      return;
+    }
+
+    setSelectedTrendRepairId((current) => {
+      if (current && topRepairsByTickets2025.some((repair) => repair.repairId === current)) {
+        return current;
+      }
+      return topRepairsByTickets2025[0].repairId;
+    });
+  }, [topRepairsByTickets2025]);
+
+  const selectedTrendRepair = useMemo(
+    () => topRepairsByTickets2025.find((repair) => repair.repairId === selectedTrendRepairId),
+    [selectedTrendRepairId, topRepairsByTickets2025]
   );
+
+  const trendData = useMemo(() => {
+    if (!selectedTrendRepairId) return [];
+    const start = new Date(2025, 0, 1);
+    const end = new Date();
+    const months: string[] = [];
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    const endCursor = new Date(end.getFullYear(), end.getMonth(), 1);
+
+    while (cursor <= endCursor) {
+      const monthLabel = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+      months.push(monthLabel);
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    const monthMap = new Map<
+      string,
+      { totalCost: number; ticketCount: number; uniqueChassis: Set<string> }
+    >();
+
+    ticketsFrom2025.forEach((ticketEntry) => {
+      const repair = ticketEntry.roles?.["43"];
+      const repairId = repair?.InvolvedPartyBusinessPartnerID?.trim() || "no-repair";
+      if (repairId !== selectedTrendRepairId) return;
+
+      const created = parseTicketDate(ticketEntry.ticket.CreatedOn);
+      if (Number.isNaN(created.getTime()) || created < start || created > end) return;
+      const monthKey = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, "0")}`;
+      const cost = parseAmountIncludingTax(ticketEntry.ticket.AmountIncludingTax) ?? 0;
+      const chassis = getNormalizedSerialId(ticketEntry);
+
+      const existing = monthMap.get(monthKey) ?? {
+        totalCost: 0,
+        ticketCount: 0,
+        uniqueChassis: new Set<string>(),
+      };
+
+      existing.totalCost += cost;
+      existing.ticketCount += 1;
+      if (chassis) {
+        existing.uniqueChassis.add(chassis);
+      }
+
+      monthMap.set(monthKey, existing);
+    });
+
+    return months.map((month) => {
+      const stats = monthMap.get(month);
+      const ticketCount = stats?.ticketCount ?? 0;
+      const avgCost = ticketCount > 0 ? stats!.totalCost / ticketCount : 0;
+      const uniqueChassisPercent =
+        ticketCount > 0 ? (stats!.uniqueChassis.size / ticketCount) * 100 : 0;
+      return {
+        month,
+        avgCost,
+        ticketCount,
+        uniqueChassisPercent,
+      };
+    });
+  }, [selectedTrendRepairId, ticketsFrom2025]);
 
   const paginatedRepairs = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
@@ -273,43 +397,128 @@ export default function RepairsPage() {
             <CardTitle>Cost Range Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={costRangeData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {costRangeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="mx-auto w-full max-w-xs">
+              <ResponsiveContainer width="100%" height={240}>
+                <PieChart>
+                  <Pie
+                    data={costRangeData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={70}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {costRangeData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Top Repair Shops by Total Cost</CardTitle>
+            <CardTitle>Top Repair Shops by Ticket Trends (2025)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {selectedTrendRepair
+                ? `Viewing ${selectedTrendRepair.repairName} (${selectedTrendRepair.ticketCount} tickets)`
+                : "Select a repair shop to view 2025 trends."}
+            </p>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={topShopsData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="totalCost" fill="#3B82F6" name="Total Cost ($)" />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="flex flex-col gap-6 lg:flex-row">
+            <div className="min-h-[320px] flex-1">
+              {selectedTrendRepair ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <LineChart data={trendData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis
+                      yAxisId="cost"
+                      tickFormatter={(value: number) => `$${value.toFixed(0)}`}
+                    />
+                    <YAxis
+                      yAxisId="tickets"
+                      orientation="right"
+                      tickFormatter={(value: number) => `${value}`}
+                    />
+                    <YAxis yAxisId="unique" domain={[0, 100]} hide />
+                    <Tooltip
+                      formatter={(value: number, name: string) => {
+                        if (name === "Avg Cost") {
+                          return [`$${value.toFixed(2)}`, name];
+                        }
+                        if (name === "Unique Chassis %") {
+                          return [`${value.toFixed(1)}%`, name];
+                        }
+                        return [value, name];
+                      }}
+                    />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="avgCost"
+                      stroke="#3B82F6"
+                      yAxisId="cost"
+                      name="Avg Cost"
+                      strokeWidth={2}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="ticketCount"
+                      stroke="#10B981"
+                      yAxisId="tickets"
+                      name="Tickets"
+                      strokeWidth={2}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="uniqueChassisPercent"
+                      stroke="#F59E0B"
+                      yAxisId="unique"
+                      name="Unique Chassis %"
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  No 2025 repair ticket trends available.
+                </div>
+              )}
+            </div>
+            <div className="w-full lg:w-72">
+              <p className="text-sm font-medium">Top 10 repairs by ticket count</p>
+              <p className="text-xs text-muted-foreground">
+                Select a repair shop to update the 2025 trend lines.
+              </p>
+              <div className="mt-3 space-y-2">
+                {topRepairsByTickets2025.map((repair, index) => (
+                  <button
+                    key={repair.repairId}
+                    type="button"
+                    onClick={() => setSelectedTrendRepairId(repair.repairId)}
+                    className={`w-full rounded-md border px-3 py-2 text-left text-sm transition ${
+                      selectedTrendRepairId === repair.repairId
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:bg-muted/60"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="truncate font-medium">
+                        {index + 1}. {repair.repairName}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{repair.ticketCount}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">ID: {repair.repairId}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
