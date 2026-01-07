@@ -60,13 +60,11 @@ export default function AftersaleGuidesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 rounded-2xl border border-slate-200/70 bg-slate-50/80 p-6 shadow-sm">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold">Aftersale knowledge base</h2>
-          <p className="text-muted-foreground">
-            Layered directories + real-time storage + smart fuzzy search to build a professional aftersale library.
-          </p>
+          <p className="text-muted-foreground">Organize aftersale guides and resources in one place.</p>
         </div>
         <div className="flex items-center gap-3">
           <UploadPanel
@@ -75,7 +73,7 @@ export default function AftersaleGuidesPage() {
             catalogues={tree}
           />
           <Badge variant="outline" className="gap-2">
-            <Sparkles className="h-4 w-4 text-amber-500" /> Firebase realtime powered
+            <Sparkles className="h-4 w-4 text-amber-500" /> Live updates
           </Badge>
         </div>
       </div>
@@ -94,14 +92,14 @@ export default function AftersaleGuidesPage() {
         </div>
 
         <div className="space-y-4">
-          <Card className="border-0 bg-white shadow-sm">
+          <Card className="border border-slate-200/70 bg-white shadow-sm">
             <CardHeader className="space-y-3">
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <CardTitle className="text-xl">File list</CardTitle>
                 <div className="relative w-full md:w-80">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
-                    placeholder="Fuzzy search files / directories"
+                    placeholder="Search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-9"
@@ -109,11 +107,6 @@ export default function AftersaleGuidesPage() {
                 </div>
               </div>
               <Separator />
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="secondary">Saved in real time to Firebase Realtime Database</Badge>
-                <Badge variant="secondary">File storage: gs://snowy-hr-report.firebasestorage.app</Badge>
-                <Badge variant="secondary">Fuzzy search (keyword match)</Badge>
-              </div>
             </CardHeader>
 
             <CardContent>

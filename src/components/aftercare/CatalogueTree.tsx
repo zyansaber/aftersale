@@ -69,12 +69,12 @@ export const CatalogueTree = ({ tree, activeId, onSelect, onCreate }: CatalogueT
   const catalogueOptions = tree.flatMap((node) => [node, ...node.children]);
 
   return (
-    <Card className="border-0 bg-white shadow-sm">
-      <CardContent className="p-4 space-y-4">
+    <Card className="border border-slate-200/70 bg-white shadow-sm">
+      <CardContent className="space-y-4 p-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold">Knowledge catalog</h3>
-            <p className="text-xs text-muted-foreground">Build a hierarchical structure for aftercare guides.</p>
+            <p className="text-xs text-muted-foreground">Organize guide folders and categories.</p>
           </div>
           <Sheet open={openSheet} onOpenChange={setOpenSheet}>
             <SheetTrigger asChild>
