@@ -78,7 +78,7 @@ export function getNormalizedSerialId(ticketEntry: TicketEntry) {
     return trimmed ? trimmed.replace(/-/g, "") : "";
   };
 
-  const serialId = normalizeValue(ticketEntry.SerialID);
+  const serialId = normalizeValue(ticketEntry.SerialID ?? ticketEntry.ticket?.SerialID);
   if (serialId) {
     return serialId;
   }
