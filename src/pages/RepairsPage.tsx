@@ -397,8 +397,8 @@ export default function RepairsPage() {
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Cost Range Distribution</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -408,8 +408,8 @@ export default function RepairsPage() {
             </p>
           </CardHeader>
           <CardContent>
-            <div className="mx-auto w-full max-w-[10rem]">
-              <ResponsiveContainer width="100%" height={120}>
+            <div className="mx-auto w-full max-w-[16rem]">
+              <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie
                     data={costRangeData}
@@ -417,7 +417,7 @@ export default function RepairsPage() {
                     cy="50%"
                     labelLine={false}
                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={35}
+                    outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -432,7 +432,7 @@ export default function RepairsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="md:col-span-3">
           <CardHeader>
             <CardTitle>Top Repair Shops by Ticket Trends (2025)</CardTitle>
             <p className="text-sm text-muted-foreground">
