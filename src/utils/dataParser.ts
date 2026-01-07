@@ -73,15 +73,25 @@ function getRepairInfo(ticketEntry: TicketEntry) {
 }
 
 export function getNormalizedSerialId(ticketEntry: TicketEntry) {
-  if (ticketEntry.SerialID !== undefined && ticketEntry.SerialID !== null) {
-    const serialId = ticketEntry.SerialID.trim();
-    return serialId ? serialId.replace(/-/g, "") : "";
+  const normalizeValue = (value?: string | null) => {
+    const trimmed = (value ?? "").trim();
+    return trimmed ? trimmed.replace(/-/g, "") : "";
+  };
+
+  const serialId = normalizeValue(ticketEntry.SerialID);
+  if (serialId) {
+    return serialId;
+  }
+
+  const chassisNumber = normalizeValue(ticketEntry.ticket?.ChassisNumber);
+  if (chassisNumber) {
+    return chassisNumber;
   }
 
   const ticketName = ticketEntry.ticket.TicketName?.trim?.() ?? ticketEntry.ticket.TicketName;
   const fallback = ticketName ? ticketName.split(" ").filter(Boolean).pop() ?? "" : "";
 
-  return fallback.replace(/-/g, "");
+  return normalizeValue(fallback);
 }
 
 export function parseAmountIncludingTax(amount: string | null | undefined): number | null {
