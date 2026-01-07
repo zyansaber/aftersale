@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { RepairStats, TicketData, TicketEntry } from "@/types/ticket";
+import { RepairStats, TicketEntry } from "@/types/ticket";
 import { analyzeRepairs, getNormalizedSerialId, parseAmountIncludingTax } from "@/utils/dataParser";
 import { useVisibleTickets } from "@/hooks/useVisibleTickets";
 import StatCard from "@/components/StatCard";
@@ -68,25 +68,69 @@ export default function RepairInsightPage() {
   }, [repairTickets]);
 
   const chassisDuplicateDistribution = useMemo(() => {
-    const counts: Record<string, number> = {};
+    const chassisStats: Record<
+      string,
+      {
+        count: number;
+        earliestDate?: Date;
+      }
+    > = {};
+
     repairTickets.forEach((ticketEntry) => {
       const chassis = getNormalizedSerialId(ticketEntry);
       if (!chassis) return;
-      counts[chassis] = (counts[chassis] || 0) + 1;
+      const current = chassisStats[chassis] ?? { count: 0 };
+      current.count += 1;
+      const createdOn = new Date(ticketEntry.ticket.CreatedOn);
+      if (!Number.isNaN(createdOn.getTime())) {
+        if (!current.earliestDate || createdOn < current.earliestDate) {
+          current.earliestDate = createdOn;
+        }
+      }
+      chassisStats[chassis] = current;
     });
 
-    const distribution = [
-      { label: "Unique", min: 1, max: 2, count: 0 },
-      { label: "2 - 3 repeats", min: 2, max: 4, count: 0 },
-      { label: "4+ repeats", min: 4, max: Infinity, count: 0 },
+    const repeatRanges = [
+      { key: "unique", label: "Unique", min: 1, max: 2 },
+      { key: "repeat_2_3", label: "2 - 3 repeats", min: 2, max: 4 },
+      { key: "repeat_4_plus", label: "4+ repeats", min: 4, max: Infinity },
     ];
 
-    Object.values(counts).forEach((repeatCount) => {
-      const bucket = distribution.find((b) => repeatCount >= b.min && repeatCount < b.max);
-      if (bucket) bucket.count += repeatCount;
+    const costRanges = [
+      { key: "low", label: "0 - 500", min: 0, max: 500 },
+      { key: "mid", label: "500 - 2k", min: 500, max: 2000 },
+      { key: "high", label: "2k - 5k", min: 2000, max: 5000 },
+      { key: "premium", label: "5k+", min: 5000, max: Infinity },
+    ];
+
+    const distribution = repeatRanges.map((range) => ({
+      label: range.label,
+      ...costRanges.reduce<Record<string, number>>((acc, costRange) => {
+        acc[costRange.key] = 0;
+        return acc;
+      }, {}),
+    }));
+
+    repairTickets.forEach((ticketEntry) => {
+      const chassis = getNormalizedSerialId(ticketEntry);
+      if (!chassis) return;
+      const chassisInfo = chassisStats[chassis];
+      if (!chassisInfo) return;
+      const repeatRange = repeatRanges.find(
+        (range) => chassisInfo.count >= range.min && chassisInfo.count < range.max
+      );
+      const amount = parseAmountIncludingTax(ticketEntry.ticket.AmountIncludingTax) ?? 0;
+      const costRange = costRanges.find(
+        (range) => amount >= range.min && amount < range.max
+      );
+      if (!repeatRange || !costRange) return;
+      const target = distribution.find((entry) => entry.label === repeatRange.label);
+      if (target) {
+        target[costRange.key] += 1;
+      }
     });
 
-    return distribution;
+    return { distribution, chassisStats, repeatRanges };
   }, [repairTickets]);
 
   const statusCounts = useMemo(() => {
@@ -101,21 +145,35 @@ export default function RepairInsightPage() {
   }, [repairTickets]);
 
   const ticketTrend = useMemo(() => {
-    const timeline: Record<string, number> = {};
-    repairTickets.forEach((ticketEntry) => {
-      const createdOn = ticketEntry.ticket.CreatedOn;
-      const date = new Date(createdOn);
-      if (Number.isNaN(date.getTime())) return;
-      const label = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      timeline[label] = (timeline[label] || 0) + 1;
+    const timeline: Record<string, Record<string, number>> = {};
+
+    Object.entries(chassisDuplicateDistribution.chassisStats).forEach(([_, chassisInfo]) => {
+      if (!chassisInfo.earliestDate) return;
+      const label = `${chassisInfo.earliestDate.getFullYear()}-${String(
+        chassisInfo.earliestDate.getMonth() + 1
+      ).padStart(2, "0")}`;
+      const repeatRange = chassisDuplicateDistribution.repeatRanges.find(
+        (range) => chassisInfo.count >= range.min && chassisInfo.count < range.max
+      );
+      if (!repeatRange) return;
+      if (!timeline[label]) {
+        timeline[label] = {};
+      }
+      timeline[label][repeatRange.key] = (timeline[label][repeatRange.key] || 0) + 1;
     });
 
     const sorted = Object.entries(timeline)
       .sort(([a], [b]) => (a > b ? 1 : -1))
-      .map(([month, value]) => ({ month, value }));
+      .map(([month, values]) => {
+        const entry: Record<string, number | string> = { month };
+        chassisDuplicateDistribution.repeatRanges.forEach((range) => {
+          entry[range.key] = values[range.key] || 0;
+        });
+        return entry;
+      });
 
-    return sorted.filter(({ month }) => month >= startMonth);
-  }, [repairTickets, startMonth]);
+    return sorted.filter(({ month }) => String(month) >= startMonth);
+  }, [chassisDuplicateDistribution, startMonth]);
 
   const costByType = useMemo(() => {
     if (!selectedRepair) return [];
@@ -224,14 +282,20 @@ export default function RepairInsightPage() {
             <CardTitle>Chassis Number Repeat Range</CardTitle>
           </CardHeader>
           <CardContent className="h-[320px]">
-            {chassisDuplicateDistribution.some((b) => b.count > 0) ? (
+            {chassisDuplicateDistribution.distribution.some((entry) =>
+              Object.values(entry).some((value) => typeof value === "number" && value > 0)
+            ) ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chassisDuplicateDistribution}>
+                <BarChart data={chassisDuplicateDistribution.distribution}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="label" />
                   <YAxis />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#10B981" name="Chassis IDs" radius={[6, 6, 0, 0]} />
+                  <Legend />
+                  <Bar dataKey="low" stackId="cost" fill="#38BDF8" name="0 - 500" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="mid" stackId="cost" fill="#34D399" name="500 - 2k" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="high" stackId="cost" fill="#F59E0B" name="2k - 5k" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="premium" stackId="cost" fill="#EF4444" name="5k+" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -294,9 +358,27 @@ export default function RepairInsightPage() {
                   <Legend />
                   <Line
                     type="monotone"
-                    dataKey="value"
-                    name="Ticket Count"
-                    stroke="#8B5CF6"
+                    dataKey="unique"
+                    name="Unique"
+                    stroke="#38BDF8"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="repeat_2_3"
+                    name="2 - 3 repeats"
+                    stroke="#34D399"
+                    strokeWidth={3}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="repeat_4_plus"
+                    name="4+ repeats"
+                    stroke="#F97316"
                     strokeWidth={3}
                     dot={{ r: 4 }}
                     activeDot={{ r: 6 }}
