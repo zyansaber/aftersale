@@ -67,7 +67,8 @@ const END_MONTH = endOfMonth(new Date());
 const START_MONTH = startOfMonth(new Date(2025, 0, 1));
 const RECENT_WINDOW_MONTHS = 3;
 const RECENT_START_MONTH = startOfMonth(addMonths(END_MONTH, -(RECENT_WINDOW_MONTHS - 1)));
-const ALL_AVERAGE_ID = "all-average";
+const ALL_ID = "all";
+const AVERAGE_ID = "average";
 const CHART_COLORS = {
   createdStroke: "#6fa8dc",
   createdArea: "rgba(111, 168, 220, 0.22)",
@@ -125,7 +126,7 @@ function buildMonthSkeleton() {
 }
 
 export default function ClaimVsClosedPage() {
-  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([ALL_AVERAGE_ID]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([ALL_ID]);
   const { data, isLoading, error } = useVisibleTickets({
     applyEmployeeVisibility: true,
     applyRepairVisibility: false,
@@ -166,7 +167,7 @@ export default function ClaimVsClosedPage() {
   }, [data]);
 
   const selectedEmployeeFilterIds = useMemo(
-    () => selectedEmployeeIds.filter((employeeId) => employeeId !== ALL_AVERAGE_ID),
+    () => selectedEmployeeIds.filter((employeeId) => ![ALL_ID, AVERAGE_ID].includes(employeeId)),
     [selectedEmployeeIds]
   );
   const employeeColorMap = useMemo(
@@ -408,8 +409,10 @@ export default function ClaimVsClosedPage() {
       .sort((a, b) => b.completedCount - a.completedCount || a.employeeName.localeCompare(b.employeeName));
   }, [scopedData]);
 
-  const includeAllAverage = selectedEmployeeIds.includes(ALL_AVERAGE_ID);
-  const showCreatedLine = includeAllAverage && selectedEmployeeFilterIds.length === 0;
+  const includeAll = selectedEmployeeIds.includes(ALL_ID);
+  const includeAverage = selectedEmployeeIds.includes(AVERAGE_ID);
+  const showCreatedLine = includeAll && selectedEmployeeFilterIds.length === 0;
+  const totalEmployees = employeeOptions.length;
 
   const employeeNameLookup = useMemo(
     () => new Map(employeeOptions.map((employee) => [employee.employeeId, employee.employeeName])),
@@ -420,19 +423,26 @@ export default function ClaimVsClosedPage() {
     setSelectedEmployeeIds((prev) => {
       const exists = prev.includes(employeeId);
       const next = exists ? prev.filter((id) => id !== employeeId) : [...prev, employeeId];
-      return next.length === 0 ? [ALL_AVERAGE_ID] : next;
+      return next.length === 0 ? [ALL_ID] : next;
     });
   };
 
   const trendChartData = useMemo(() => {
     const rows = months.map((month) => ({ month: month.label }) as Record<string, number | string>);
 
-    if (includeAllAverage) {
+    if (includeAll) {
       overallDailyTrend.forEach((row, index) => {
-        rows[index].allAverage = row.completedDailyAvg;
+        rows[index].allTotal = row.completedDailyAvg;
         if (showCreatedLine) {
           rows[index].createdDailyAvg = row.createdDailyAvg;
         }
+      });
+    }
+
+    if (includeAverage) {
+      overallDailyTrend.forEach((row, index) => {
+        rows[index].averagePerEmployee =
+          totalEmployees > 0 ? Number((row.completedDailyAvg / totalEmployees).toFixed(2)) : 0;
       });
     }
 
@@ -445,7 +455,16 @@ export default function ClaimVsClosedPage() {
     });
 
     return rows;
-  }, [employeeCompletionTrend, includeAllAverage, months, overallDailyTrend, selectedEmployeeFilterIds, showCreatedLine]);
+  }, [
+    employeeCompletionTrend,
+    includeAll,
+    includeAverage,
+    months,
+    overallDailyTrend,
+    selectedEmployeeFilterIds,
+    showCreatedLine,
+    totalEmployees,
+  ]);
 
   if (isLoading) {
     return (
@@ -497,31 +516,52 @@ export default function ClaimVsClosedPage() {
             Choose employees to overlay in the daily trend line and scope the other charts below.
           </p>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-2">
+        <CardContent className="grid gap-3">
+          <div className="space-y-3">
             <Label>Employee focus</Label>
-            <div className="space-y-3 rounded-lg border border-border/60 bg-background p-3">
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <Checkbox
-                  checked={includeAllAverage}
-                  onCheckedChange={() => toggleEmployeeSelection(ALL_AVERAGE_ID)}
-                  id="employee-all-average"
-                />
-                <span
-                  className="h-3 w-3 rounded-sm"
-                  style={{ backgroundColor: CHART_COLORS.completedStroke }}
-                  aria-hidden="true"
-                />
-                <span>All average</span>
-              </label>
-              <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 rounded-lg border border-border/60 bg-background p-4">
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <label
+                  className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition ${
+                    includeAll ? "border-emerald-400/70 bg-emerald-50" : "border-border/60"
+                  }`}
+                >
+                  <Checkbox checked={includeAll} onCheckedChange={() => toggleEmployeeSelection(ALL_ID)} id="all" />
+                  <span
+                    className="h-3 w-3 rounded-sm"
+                    style={{ backgroundColor: CHART_COLORS.completedStroke }}
+                    aria-hidden="true"
+                  />
+                  <span>All</span>
+                </label>
+                <label
+                  className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition ${
+                    includeAverage ? "border-indigo-400/70 bg-indigo-50" : "border-border/60"
+                  }`}
+                >
+                  <Checkbox
+                    checked={includeAverage}
+                    onCheckedChange={() => toggleEmployeeSelection(AVERAGE_ID)}
+                    id="average"
+                  />
+                  <span
+                    className="h-3 w-3 rounded-sm"
+                    style={{ backgroundColor: CHART_COLORS.averageStroke }}
+                    aria-hidden="true"
+                  />
+                  <span>Average</span>
+                </label>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {employeeOptions.map((employee) => {
                   const color = employeeColorMap.get(employee.employeeId) ?? EMPLOYEE_LINE_COLORS[0];
                   const isSelected = selectedEmployeeIds.includes(employee.employeeId);
                   return (
                     <label
                       key={employee.employeeId}
-                      className="flex items-start gap-2 rounded-md border border-transparent px-2 py-1 text-sm transition hover:border-border/60 hover:bg-muted/40"
+                      className={`flex items-start gap-2 rounded-md border px-3 py-2 text-sm transition ${
+                        isSelected ? "border-slate-300 bg-slate-50" : "border-border/60"
+                      }`}
                     >
                       <Checkbox
                         checked={isSelected}
@@ -543,7 +583,8 @@ export default function ClaimVsClosedPage() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Select multiple employees to stack completed-per-day trends. Add All average for the overall baseline.
+              Select multiple employees to stack completed-per-day trends. All shows total completions, while Average
+              divides by the number of employees.
             </p>
           </div>
         </CardContent>
@@ -605,17 +646,34 @@ export default function ClaimVsClosedPage() {
                   <LabelList dataKey="createdDailyAvg" position="top" formatter={(value: number) => value.toFixed(2)} />
                 </Area>
               )}
-              {includeAllAverage && (
+              {includeAll && (
                 <Line
                   type="monotone"
-                  dataKey="allAverage"
-                  name="All average (completed)"
+                  dataKey="allTotal"
+                  name="All (completed)"
                   stroke={CHART_COLORS.completedStroke}
                   strokeWidth={4}
                   dot={{ r: 4, fill: CHART_COLORS.completedStroke }}
                   activeDot={{ r: 6 }}
                 >
-                  <LabelList dataKey="allAverage" position="top" formatter={(value: number) => value.toFixed(2)} />
+                  <LabelList dataKey="allTotal" position="top" formatter={(value: number) => value.toFixed(2)} />
+                </Line>
+              )}
+              {includeAverage && (
+                <Line
+                  type="monotone"
+                  dataKey="averagePerEmployee"
+                  name="Average per employee"
+                  stroke={CHART_COLORS.averageStroke}
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: CHART_COLORS.averageStroke }}
+                  activeDot={{ r: 6 }}
+                >
+                  <LabelList
+                    dataKey="averagePerEmployee"
+                    position="top"
+                    formatter={(value: number) => value.toFixed(2)}
+                  />
                 </Line>
               )}
               {selectedEmployeeFilterIds.map((employeeId) => {
