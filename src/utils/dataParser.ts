@@ -73,9 +73,9 @@ function getRepairInfo(ticketEntry: TicketEntry) {
 }
 
 export function getNormalizedSerialId(ticketEntry: TicketEntry) {
-  const serialId = (ticketEntry.SerialID ?? "").trim();
-  if (serialId) {
-    return serialId.replace(/-/g, "");
+  if (ticketEntry.SerialID !== undefined && ticketEntry.SerialID !== null) {
+    const serialId = ticketEntry.SerialID.trim();
+    return serialId ? serialId.replace(/-/g, "") : "";
   }
 
   const ticketName = ticketEntry.ticket.TicketName?.trim?.() ?? ticketEntry.ticket.TicketName;
