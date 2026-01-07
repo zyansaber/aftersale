@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, CheckCircle2, ChevronDown, Clock, TrendingUp } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, TrendingUp } from "lucide-react";
 import {
   Bar,
   CartesianGrid,
@@ -26,15 +26,7 @@ import {
 import StatCard from "@/components/StatCard";
 import { TicketData } from "@/types/ticket";
 import { Label } from "@/components/ui/label";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type TicketEntry = TicketData["c4cTickets_test"]["tickets"][string];
 
@@ -176,6 +168,16 @@ export default function ClaimVsClosedPage() {
   const selectedEmployeeFilterIds = useMemo(
     () => selectedEmployeeIds.filter((employeeId) => employeeId !== ALL_AVERAGE_ID),
     [selectedEmployeeIds]
+  );
+  const employeeColorMap = useMemo(
+    () =>
+      new Map(
+        employeeOptions.map((employee, index) => [
+          employee.employeeId,
+          EMPLOYEE_LINE_COLORS[index % EMPLOYEE_LINE_COLORS.length],
+        ])
+      ),
+    [employeeOptions]
   );
 
   const scopedData = useMemo<TicketData | undefined>(() => {
@@ -414,17 +416,6 @@ export default function ClaimVsClosedPage() {
     [employeeOptions]
   );
 
-  const selectedEmployeeLabel = useMemo(() => {
-    if (selectedEmployeeIds.length === 0) return "Select employees";
-
-    const labels = selectedEmployeeIds.map((employeeId) =>
-      employeeId === ALL_AVERAGE_ID ? "All average" : employeeNameLookup.get(employeeId) ?? employeeId
-    );
-
-    if (labels.length <= 2) return labels.join(", ");
-    return `${labels[0]} +${labels.length - 1} more`;
-  }, [employeeNameLookup, selectedEmployeeIds]);
-
   const toggleEmployeeSelection = (employeeId: string) => {
     setSelectedEmployeeIds((prev) => {
       const exists = prev.includes(employeeId);
@@ -508,34 +499,49 @@ export default function ClaimVsClosedPage() {
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="employee-focus">Employee focus</Label>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" id="employee-focus" className="w-full justify-between">
-                  <span className="truncate">{selectedEmployeeLabel}</span>
-                  <ChevronDown className="h-4 w-4 opacity-70" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-72 max-h-80 overflow-y-auto">
-                <DropdownMenuLabel>Trend lines</DropdownMenuLabel>
-                <DropdownMenuCheckboxItem
+            <Label>Employee focus</Label>
+            <div className="space-y-3 rounded-lg border border-border/60 bg-background p-3">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <Checkbox
                   checked={includeAllAverage}
                   onCheckedChange={() => toggleEmployeeSelection(ALL_AVERAGE_ID)}
-                >
-                  All average
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuSeparator />
-                {employeeOptions.map((employee) => (
-                  <DropdownMenuCheckboxItem
-                    key={employee.employeeId}
-                    checked={selectedEmployeeIds.includes(employee.employeeId)}
-                    onCheckedChange={() => toggleEmployeeSelection(employee.employeeId)}
-                  >
-                    {employee.employeeName} ({employee.employeeId})
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  id="employee-all-average"
+                />
+                <span
+                  className="h-3 w-3 rounded-sm"
+                  style={{ backgroundColor: CHART_COLORS.completedStroke }}
+                  aria-hidden="true"
+                />
+                <span>All average</span>
+              </label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {employeeOptions.map((employee) => {
+                  const color = employeeColorMap.get(employee.employeeId) ?? EMPLOYEE_LINE_COLORS[0];
+                  const isSelected = selectedEmployeeIds.includes(employee.employeeId);
+                  return (
+                    <label
+                      key={employee.employeeId}
+                      className="flex items-start gap-2 rounded-md border border-transparent px-2 py-1 text-sm transition hover:border-border/60 hover:bg-muted/40"
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleEmployeeSelection(employee.employeeId)}
+                        id={`employee-${employee.employeeId}`}
+                      />
+                      <span
+                        className="mt-1 h-3 w-3 shrink-0 rounded-sm"
+                        style={{ backgroundColor: color }}
+                        aria-hidden="true"
+                      />
+                      <span className="leading-snug">
+                        <span className="font-medium">{employee.employeeName}</span>{" "}
+                        <span className="text-xs text-muted-foreground">({employee.employeeId})</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
             <p className="text-xs text-muted-foreground">
               Select multiple employees to stack completed-per-day trends. Add All average for the overall baseline.
             </p>
@@ -612,9 +618,9 @@ export default function ClaimVsClosedPage() {
                   <LabelList dataKey="allAverage" position="top" formatter={(value: number) => value.toFixed(2)} />
                 </Line>
               )}
-              {selectedEmployeeFilterIds.map((employeeId, index) => {
+              {selectedEmployeeFilterIds.map((employeeId) => {
                 const employeeName = employeeNameLookup.get(employeeId) ?? employeeId;
-                const color = EMPLOYEE_LINE_COLORS[index % EMPLOYEE_LINE_COLORS.length];
+                const color = employeeColorMap.get(employeeId) ?? EMPLOYEE_LINE_COLORS[0];
                 return (
                   <Line
                     key={employeeId}
