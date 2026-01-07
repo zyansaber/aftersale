@@ -132,22 +132,28 @@ export default function RepairsPage() {
     return sorted;
   }, [filteredRepairs, sortDirection, sortKey]);
 
+  const costRangeSource = useMemo(() => {
+    if (!selectedTrendRepairId) return filteredRepairs;
+    const match = repairs.find((repair) => repair.repairId === selectedTrendRepairId);
+    return match ? [match] : filteredRepairs;
+  }, [filteredRepairs, repairs, selectedTrendRepairId]);
+
   const costRangeData = useMemo(
     () => [
       {
         name: "Low (<$500)",
-        value: filteredRepairs.reduce((sum, r) => sum + r.costRanges.low, 0),
+        value: costRangeSource.reduce((sum, r) => sum + r.costRanges.low, 0),
       },
       {
         name: "Medium ($500-$2000)",
-        value: filteredRepairs.reduce((sum, r) => sum + r.costRanges.medium, 0),
+        value: costRangeSource.reduce((sum, r) => sum + r.costRanges.medium, 0),
       },
       {
         name: "High (>$2000)",
-        value: filteredRepairs.reduce((sum, r) => sum + r.costRanges.high, 0),
+        value: costRangeSource.reduce((sum, r) => sum + r.costRanges.high, 0),
       },
     ],
-    [filteredRepairs]
+    [costRangeSource]
   );
 
   const parseTicketDate = (raw: string) => {
@@ -395,10 +401,15 @@ export default function RepairsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Cost Range Distribution</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {selectedTrendRepair
+                ? `${selectedTrendRepair.repairName} (${selectedTrendRepair.ticketCount} tickets)`
+                : "Based on current filters."}
+            </p>
           </CardHeader>
           <CardContent>
-            <div className="mx-auto w-full max-w-xs">
-              <ResponsiveContainer width="100%" height={240}>
+            <div className="mx-auto w-full max-w-[10rem]">
+              <ResponsiveContainer width="100%" height={120}>
                 <PieChart>
                   <Pie
                     data={costRangeData}
@@ -406,7 +417,7 @@ export default function RepairsPage() {
                     cy="50%"
                     labelLine={false}
                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={70}
+                    outerRadius={35}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -431,9 +442,9 @@ export default function RepairsPage() {
             </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-6 lg:flex-row">
-            <div className="min-h-[320px] flex-1">
+            <div className="min-h-[320px] flex-1 lg:flex-[2]">
               {selectedTrendRepair ? (
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={340}>
                   <LineChart data={trendData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
@@ -491,12 +502,12 @@ export default function RepairsPage() {
                 </div>
               )}
             </div>
-            <div className="w-full lg:w-72">
+            <div className="w-full lg:w-64">
               <p className="text-sm font-medium">Top 10 repairs by ticket count</p>
               <p className="text-xs text-muted-foreground">
                 Select a repair shop to update the 2025 trend lines.
               </p>
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
                 {topRepairsByTickets2025.map((repair, index) => (
                   <button
                     key={repair.repairId}
